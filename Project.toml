@@ -1,0 +1,10 @@
+name = "HydroMech"
+uuid = "a948f208-a9b0-4b80-970a-051df8f3c2e7"
+authors = ["youwuyou <youwuyou@student.ethz.ch>"]
+version = "0.1.0"
+
+[deps]
+BSON = "fbb218c0-5317-5bc6-957e-2ee96dd4b1f0"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+ReferenceTests = "324d217c-45ce-50fc-942e-d289b448e8cf"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
