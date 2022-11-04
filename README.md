@@ -8,6 +8,8 @@
 HydroMech.jl was developed during the attendance of the course 101-0250-00 at ETH Zürich, which is deisgned to be a module of the PTSolver/JustRelax.jl package. It utilizes the pseudo-transient method for efficiency of the PDEs solving. It is designed to be able to run on both CPUs and GPUs.
 
 
+## Course project hand-out
+
 ### Part 1: multi-XPUs diffusion solver
 
 - [documentation](/docs/part1.md)
@@ -15,7 +17,7 @@ HydroMech.jl was developed during the attendance of the course 101-0250-00 at ET
 - solving a given PDE as stage one of the course project
 
 
-### Project part 2: Personal project
+### Part 2: Personal project - HydroMech.jl
 
 - Hydro-mechanical solvers (2D, 3D) as an integrated part of the [JustRelax.jl](https://github.com/PTsolvers/JustRelax.jl) package
 
