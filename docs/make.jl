@@ -24,18 +24,28 @@ makedocs(
                     ],
                 "Concepts" => 
                     [
-                    "Pseudo Transient Method" => "pseudo-transient-method.md"
+                    "Pseudo Transient Method" => "pseudo-transient-method.md",
+                    "Iteration Parameters" => "iteration-parameters.md",
+                    "Stiffness of PDEs" => "stiffness-of-pdes.md",
+                    "Eigenvalue Problem" => "eigenvalue-problem.md",
+                    "Dispersion Analysis" => "dispersion-analysis.md",
+                    "Von Neumann Stability Analysis" => "von-neumann-stability-analysis.md",
+                    "Computational Earthquake Physics" => "computational-earthquake-physics.md"
                     ],
                         
                 "Benchmarks" => "benchmarks.md",
                 "Visualization" => "visualization.md",          
-                "Troubleshooting" => "troubleshooting.md",
-                
+                "Development" =>
+                    [
+                        "Roadmap" => "roadmap.md",
+                        "Time line" => "timeline.md",
+                        "Troubleshooting" => "troubleshooting.md"
+
+                    ],                
                 "Reference" => 
                     [
-                        "Computational earthquake physics" => "computational-earthquake-physics.md",
                         "PTsolvers/JustRelax.jl" => 
-                                            [ "Workflow"    =>  "justrelax-workflow.md",
+                                            [ "Overview"    =>  "justrelax-overview.md",
                                               "Source code" => [
                                                                     "Modules" => "justrelax-modules.md",
                                                                     "Types"   => "justrelax-types.md"
