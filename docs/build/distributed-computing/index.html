@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Distributed Computing · HydroMech.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../"><img src="../assets/logo.svg" alt="HydroMech.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../">HydroMech.jl</a></span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><span class="tocitem">Getting started</span><ul><li><a class="tocitem" href="../overview/">Overview</a></li><li><a class="tocitem" href="../methodology/">Methodology</a></li></ul></li><li><span class="tocitem">Solvers</span><ul><li><a class="tocitem" href="../2D-hydro-mechanical-solver/">2D-Hydro-mechanical solver</a></li><li><a class="tocitem" href="../3D-hydro-mechanical-solver/">3D-Hydro-mechanical solver</a></li></ul></li><li><span class="tocitem">Concepts</span><ul><li><a class="tocitem" href="../pseudo-transient-method/">Pseudo Transient Method</a></li><li><a class="tocitem" href="../iteration-parameters/">Iteration Parameters</a></li><li><a class="tocitem" href="../stiffness-of-pdes/">Stiffness of PDEs</a></li><li><a class="tocitem" href="../eigenvalue-problem/">Eigenvalue Problem</a></li><li><a class="tocitem" href="../dispersion-analysis/">Dispersion Analysis</a></li><li><a class="tocitem" href="../von-neumann-stability-analysis/">Von Neumann Stability Analysis</a></li><li><a class="tocitem" href="../computational-earthquake-physics/">Computational Earthquake Physics</a></li></ul></li><li class="is-active"><a class="tocitem" href>Distributed Computing</a><ul class="internal"><li><a class="tocitem" href="#Tutorial"><span>Tutorial</span></a></li></ul></li><li><a class="tocitem" href="../benchmarks/">Benchmarks</a></li><li><a class="tocitem" href="../visualization/">Visualization</a></li><li><span class="tocitem">Development</span><ul><li><a class="tocitem" href="../roadmap/">Roadmap</a></li><li><a class="tocitem" href="../timeline/">Time line</a></li><li><a class="tocitem" href="../troubleshooting/">Troubleshooting</a></li></ul></li><li><span class="tocitem">Reference</span><ul><li><a class="tocitem" href="../hydromech/">HydroMech.jl</a></li><li><input class="collapse-toggle" id="menuitem-9-2" type="checkbox"/><label class="tocitem" for="menuitem-9-2"><span class="docs-label">PTsolvers/JustRelax.jl</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../justrelax-overview/">Overview</a></li><li><input class="collapse-toggle" id="menuitem-9-2-2" type="checkbox"/><label class="tocitem" for="menuitem-9-2-2"><span class="docs-label">Source code</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../justrelax-modules/">Modules</a></li><li><a class="tocitem" href="../justrelax-types/">Types</a></li></ul></li><li><a class="tocitem" href="../justrelax-Miniapps/">Miniapps</a></li><li><a class="tocitem" href="../justrelax-Testing/">Testing</a></li></ul></li><li><a class="tocitem" href="../parallelstencil/">ParallelStencil</a></li><li><a class="tocitem" href="../juliageodynamics/">JuliaGeodynamics</a></li></ul></li><li><a class="tocitem" href="../license/">License</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Distributed Computing</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Distributed Computing</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/youwuyou/HydroMech.jl/blob/main/docs/src/distributed-computing.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Distributed-Computing"><a class="docs-heading-anchor" href="#Distributed-Computing">Distributed Computing</a><a id="Distributed-Computing-1"></a><a class="docs-heading-anchor-permalink" href="#Distributed-Computing" title="Permalink"></a></h1><h2 id="Tutorial"><a class="docs-heading-anchor" href="#Tutorial">Tutorial</a><a id="Tutorial-1"></a><a class="docs-heading-anchor-permalink" href="#Tutorial" title="Permalink"></a></h2><h3 id="Simple-Performance-Estimation"><a class="docs-heading-anchor" href="#Simple-Performance-Estimation">Simple Performance Estimation</a><a id="Simple-Performance-Estimation-1"></a><a class="docs-heading-anchor-permalink" href="#Simple-Performance-Estimation" title="Permalink"></a></h3><p>We can estimate the performance using the following metrics </p><p class="math-container">\[T_\text{eff} = \frac{A_\text{eff}}{t_\text{it}} = \frac{2 D_u + D_k}{\Delta t / \text{niter}}\]</p><p>TODO: add the example of the effective memory</p><h3 id="Parallelizing-a-serial-code"><a class="docs-heading-anchor" href="#Parallelizing-a-serial-code">Parallelizing a serial code</a><a id="Parallelizing-a-serial-code-1"></a><a class="docs-heading-anchor-permalink" href="#Parallelizing-a-serial-code" title="Permalink"></a></h3><ul><li>STEP 1: Precompute scalars, remove divisions</li></ul><pre><code class="language-julia hljs"># instead of division, we precompute the fractions to be multipled on
+_β_dτ_D     = 1. /β_dτ_D</code></pre><ul><li>STEP 2: Remove element-wise operators and use loops instead for updating the elements of the arrays, where we introduce the indices like <code>ix</code>, <code>iy</code></li></ul><pre><code class="language-julia hljs"># the pressure update using the element-wise arithmetic operations
+Pf     .-= ((qDx[2:end, :] - qDx[1:end-1, :]).* _dx .+ (qDy[:, 2:end] - qDy[:, 1:end-1]).* _dy).* _β_dτ_D</code></pre><ul><li>STEP 3: Remove the julia functions like <code>diff(A, dims=1)</code> and use the indices <code>ix</code>, <code>iy</code> instead to &quot;manually&quot; compute the differences. Another possibility is to use the macros of the <code>ParallelStencil</code> package by <code>@d_xa</code>, <code>@d_ya</code> etc</li></ul><pre><code class="language-julia hljs"># we manually implemented the macros
+macro d_xa(A)  esc(:( $A[ix+1,iy]-$A[ix,iy] )) end
+macro d_ya(A)  esc(:( $A[ix,iy+1]-$A[ix,iy] )) end
+
+# and use them for the loop version of differences calculation
+Pf[ix,iy]     -= (@d_xa(qDx) * _dx + @d_ya(qDy)* _dy) * _β_dτ_D
+</code></pre><ul><li><p>STEP 4: After verifying the correctness of the bounds to be iterated on, add the macro <code>@inbounds</code> at the needed places</p></li><li><p>STEP 5: Move the loops into a compute kernel in the following forms</p></li></ul><pre><code class="language-julia hljs">function compute_Pf!(Pf,...)
+    nx, ny = size(Pf)
+    ...
+    return nothing
+end</code></pre><h3 id="Parallelizing-using-ParallelStencil.jl"><a class="docs-heading-anchor" href="#Parallelizing-using-ParallelStencil.jl">Parallelizing using <code>ParallelStencil.jl</code></a><a id="Parallelizing-using-ParallelStencil.jl-1"></a><a class="docs-heading-anchor-permalink" href="#Parallelizing-using-ParallelStencil.jl" title="Permalink"></a></h3><p>For the macros that can be used, check the <a href="https://github.com/omlins/ParallelStencil.jl/blob/83c607b2d4fdcc38dceb130b3458ff736ebe9a18/src/FiniteDifferences.jl">FiniteDifferences.jl</a></p><pre><code class="language-julia hljs">
+using Printf, LazyArrays, Plots, BenchmarkTools
+using JLD  # for storing testing data
+
+
+@views av1(A) = 0.5.*(A[1:end-1].+A[2:end])
+@views avx(A) = 0.5.*(A[1:end-1,:].+A[2:end,:])
+@views avy(A) = 0.5.*(A[:,1:end-1].+A[:,2:end])
+
+
+macro d_xa(A)  esc(:( $A[ix+1,iy]-$A[ix,iy] )) end
+macro d_ya(A)  esc(:( $A[ix,iy+1]-$A[ix,iy] )) end
+
+
+
+# Darcy&#39;s flux update
+function compute_flux_darcy!(Pf, T, qDx, qDy, _dx, _dy, k_ηf, αρgx, αρgy, _1_θ_dτ_D)
+    nx, ny = size(Pf)
+
+    for iy = 1:ny
+        for ix = 1:nx-1
+            # qDx[2:end-1,:] .-= (qDx[2:end-1,:] .+ k_ηf.*((Pf[2:end,:] .- Pf[1:end-1, :]) .* _dx .- αρgx.*avx(T))).* _1_θ_dτ_D
+            qDx[ix+1,iy] -= (qDx[ix+1,iy] + k_ηf * (@d_xa(Pf) * _dx - αρgx *  0.5 * (T[ix,iy] + T[ix+1,iy]))) * _1_θ_dτ_D
+            
+        end
+    end
+    
+    for iy = 1:ny-1
+        for ix = 1:nx
+            # qDy[:,2:end-1] .-= (qDy[:,2:end-1] .+ k_ηf.*((Pf[:, 2:end] .- Pf[:, 1:end-1]) .* _dy .- αρgy.*avy(T))).* _1_θ_dτ_D
+            qDy[ix,iy+1] -= (qDy[ix,iy+1] + k_ηf * (@d_ya(Pf) * _dy - αρgy * 0.5 * (T[ix, iy] + T[ix, iy+1]))) * _1_θ_dτ_D
+        end
+    end
+
+end
+
+
+# pressure update
+function compute_Pf!(Pf, qDx, qDy, _dx, _dy, _β_dτ_D)
+    nx, ny = size(Pf)
+
+    for iy = 1:ny
+        for ix = 1:nx
+            # Pf     .-= ((qDx[2:end, :] - qDx[1:end-1, :]).* _dx .+ (qDy[:, 2:end] - qDy[:, 1:end-1]).* _dy).* _β_dτ_D
+            @inbounds Pf[ix,iy]     -= (@d_xa(qDx) * _dx + @d_ya(qDy)* _dy) * _β_dτ_D
+        end
+    end
+
+    return nothing
+end
+
+
+function compute_flux_temp!(Pf, T, qTx, qTy, _dx, _dy, λ_ρCp, _1_θ_dτ_T)
+    nx, ny = size(Pf)
+
+    for iy = 1:ny-2
+        for ix = 1:nx-1
+            # qTx            .-= (qTx .+ λ_ρCp.*(Diff(T[:,2:end-1],dims=1)./dx))./(1.0 + θ_dτ_T)
+            qTx[ix,iy]  -= (qTx[ix,iy] + λ_ρCp*(@d_xa(T[:,2:end-1])* _dx)) * _1_θ_dτ_T                    
+        end
+    end
+    
+    for iy = 1:ny-1
+        for ix = 1:nx-2
+            # qTy            .-= (qTy .+ λ_ρCp.*(Diff(T[2:end-1,:],dims=2)./dy))./(1.0 + θ_dτ_T)
+            qTy[ix,iy]  -= (qTy[ix,iy] + λ_ρCp*(@d_ya(T[2:end-1,:])* _dy)) * _1_θ_dτ_T
+        end
+    end
+
+end
+
+
+
+function compute_T!(T, dTdt, qTx, qTy, _dx, _dy, _dt_β_dτ_T)
+    nx, ny = size(T)
+
+    for iy = 1:ny-2
+        for ix = 1:nx-2
+            # T[2:end-1,2:end-1] .-= (dTdt .+ @d_xa(qTx).* _dx .+ @d_ya(qTy).* _dy).* _dt_β_dτ_T
+            T[ix+1,iy+1] -= (dTdt[ix,iy] + @d_xa(qTx)* _dx + @d_ya(qTy)* _dy)* _dt_β_dτ_T                    
+        end
+    end
+end
+
+
+
+@views function porous_convection_2D_xpu(ny_, nt_; do_visu=false, do_check=true, test=true)
+    # physics
+    lx,ly       = 40., 20.
+    k_ηf        = 1.0
+    αρgx,αρgy   = 0.0,1.0
+    αρg         = sqrt(αρgx^2+αρgy^2)
+    ΔT          = 200.0
+    ϕ           = 0.1
+    Ra          = 1000                    # changed from 100
+    λ_ρCp       = 1/Ra*(αρg*k_ηf*ΔT*ly/ϕ) # Ra = αρg*k_ηf*ΔT*ly/λ_ρCp/ϕ
+  
+    # numerics
+    ny          = ny_                     # ceil(Int,nx*ly/lx)
+    nx          = 2 * (ny+1) - 1          # 127
+    nt          = nt_                     # 500
+    re_D        = 4π
+    cfl         = 1.0/sqrt(2.1)
+    maxiter     = 10max(nx,ny)
+    ϵtol        = 1e-6
+    nvis        = 20
+    ncheck      = ceil(max(nx,ny)) # ceil(0.25max(nx,ny))
+  
+    # preprocessing
+    dx,dy       = lx/nx,ly/ny
+    xn,yn       = LinRange(-lx/2,lx/2,nx+1),LinRange(-ly,0,ny+1)
+    xc,yc       = av1(xn),av1(yn)
+    θ_dτ_D      = max(lx,ly)/re_D/cfl/min(dx,dy)
+    β_dτ_D      = (re_D*k_ηf)/(cfl*min(dx,dy)*max(lx,ly))
+   
+    # hpc value precomputation
+    _dx, _dy    = 1. /dx, 1. /dy
+    _ϕ          = 1. / ϕ
+    _1_θ_dτ_D   = 1 ./(1.0 + θ_dτ_D)
+    _β_dτ_D     = 1. /β_dτ_D
+
+
+    # array initialization
+    Pf          = zeros(nx,ny)
+    r_Pf        = zeros(nx,ny)
+    qDx,qDy     = zeros(nx+1,ny),zeros(nx,ny+1)
+    qDx_c,qDy_c = zeros(nx,ny),zeros(nx,ny)
+    qDmag       = zeros(nx,ny)     
+    T           = @. ΔT*exp(-xc^2 - (yc&#39;+ly/2)^2); T[:,1] .= ΔT/2; T[:,end] .= -ΔT/2
+    T_old       = copy(T)
+    dTdt        = zeros(nx-2,ny-2)
+    r_T         = zeros(nx-2,ny-2)
+    qTx         = zeros(nx-1,ny-2)
+    qTy         = zeros(nx-2,ny-1)
+   
+    st          = ceil(Int,nx/25)
+    Xc, Yc      = [x for x=xc, y=yc], [y for x=xc,y=yc]
+    Xp, Yp      = Xc[1:st:end,1:st:end], Yc[1:st:end,1:st:end]
+
+    # visu
+    if do_visu
+        # needed parameters for plotting
+
+        # plotting environment
+        ENV[&quot;GKSwstype&quot;]=&quot;nul&quot;
+        if isdir(&quot;viz_out&quot;)==false mkdir(&quot;viz_out&quot;) end
+        loadpath = &quot;viz_out/&quot;; anim = Animation(loadpath,String[])
+        println(&quot;Animation directory: $(anim.dir)&quot;)
+        iframe = 0
+    end
+
+
+
+    # action
+    t_tic = 0.0; niter = 0
+    for it = 1:nt
+        T_old .= T
+
+        # time step
+        dt = if it == 1 
+            0.1*min(dx,dy)/(αρg*ΔT*k_ηf)
+        else
+            min(5.0*min(dx,dy)/(αρg*ΔT*k_ηf),ϕ*min(dx/maximum(abs.(qDx)), dy/maximum(abs.(qDy)))/2.1)
+        end
+
+        _dt = 1. /dt   # precomputation
+        
+        
+        re_T    = π + sqrt(π^2 + ly^2/λ_ρCp * _dt)
+        θ_dτ_T  = max(lx,ly)/re_T/cfl/min(dx,dy)
+        β_dτ_T  = (re_T*λ_ρCp)/(cfl*min(dx,dy)*max(lx,ly))
+        
+        _1_θ_dτ_T   = 1 ./ (1.0 + θ_dτ_T)
+        _dt_β_dτ_T  = 1 ./(_dt + β_dτ_T) # precomputation
+
+        # iteration loop
+        iter = 1; err_D = 2ϵtol; err_T = 2ϵtol
+        while max(err_D,err_T) &gt;= ϵtol &amp;&amp; iter &lt;= maxiter
+            if (it==1 &amp;&amp; iter == 11) t_tic = Base.time(); niter=0 end
+
+            # hydro            
+            compute_flux_darcy!(Pf, T, qDx, qDy, _dx, _dy, k_ηf, αρgx, αρgy, _1_θ_dτ_D)
+            compute_Pf!(Pf, qDx, qDy, _dx, _dy, _β_dτ_D)
+            
+            # thermo
+            compute_flux_temp!(Pf, T, qTx, qTy, _dx, _dy, λ_ρCp, _1_θ_dτ_T)
+            #     dTdt        = zeros(nx-2,ny-2)
+            
+
+            dTdt           .= (T[2:end-1,2:end-1] .- T_old[2:end-1,2:end-1]).* _dt .+
+                                (max.(qDx[2:end-2,2:end-1],0.0).*Diff(T[1:end-1,2:end-1],dims=1).* _dx .+
+                                 min.(qDx[3:end-1,2:end-1],0.0).*Diff(T[2:end  ,2:end-1],dims=1).* _dx .+
+                                 max.(qDy[2:end-1,2:end-2],0.0).*Diff(T[2:end-1,1:end-1],dims=2).* _dy .+
+                                 min.(qDy[2:end-1,3:end-1],0.0).*Diff(T[2:end-1,2:end  ],dims=2).* _dy).* _ϕ
+
+            
+            # for iy = 1:ny-2
+            #     for ix = 1:nx-2
+            #         dTdt[ix,iy]           = (T[ix+1,iy+1] - T_old[ix+1,iy+1]) * _dt +
+            #         (max(qDx[2:end-2,2:end-1],0.0) * @d_xa(T[1:end-1,2:end-1]) * _dx  +
+            #          min(qDx[3:end-1,2:end-1],0.0) * @d_xa(T[2:end  ,2:end-1]) * _dx  +
+            #          max(qDy[2:end-1,2:end-2],0.0) * @d_ya(T[2:end-1,1:end-1]) * _dy  +
+            #          min(qDy[2:end-1,3:end-1],0.0) * @d_ya(T[2:end-1,2:end  ]) * _dy) * _ϕ
+
+            #     end
+            # end
+            
+            compute_T!(T, dTdt, qTx, qTy, _dx, _dy, _dt_β_dτ_T)
+
+
+            # TODO: add the boundary condition kernel afterwards
+            # Boundary condition
+            T[[1,end],:]        .= T[[2,end-1],:]
+
+
+            if do_check &amp;&amp; iter % ncheck == 0
+                r_Pf  .= Diff(qDx,dims=1).* _dx .+ Diff(qDy,dims=2).* _dy
+                r_T   .= dTdt .+ Diff(qTx,dims=1).* _dx .+ Diff(qTy,dims=2).* _dy
+                err_D  = maximum(abs.(r_Pf))
+                err_T  = maximum(abs.(r_T))
+                # @printf(&quot;  iter/nx=%.1f, err_D=%1.3e, err_T=%1.3e\n&quot;,iter/nx,err_D,err_T)
+            end
+            iter += 1; niter += 1
+        end
+        # @printf(&quot;it = %d, iter/nx=%.1f, err_D=%1.3e, err_T=%1.3e\n&quot;,it,iter/nx,err_D,err_T)
+
+        if it % nvis == 0
+            qDx_c .= avx(qDx)
+            qDy_c .= avy(qDy)
+            qDmag .= sqrt.(qDx_c.^2 .+ qDy_c.^2)
+            qDx_c ./= qDmag
+            qDy_c ./= qDmag
+            qDx_p = qDx_c[1:st:end,1:st:end]
+            qDy_p = qDy_c[1:st:end,1:st:end]
+            
+
+            # visualisation
+            if do_visu
+                heatmap(xc,yc,T&#39;;xlims=(xc[1],xc[end]),ylims=(yc[1],yc[end]),aspect_ratio=1,c=:turbo)
+                png(quiver!(Xp[:], Yp[:], quiver=(qDx_p[:], qDy_p[:]), lw=0.5, c=:black),
+                    @sprintf(&quot;viz_out/porous2D_%04d.png&quot;,iframe+=1))
+            end
+        end
+
+    end
+
+
+    t_toc = Base.time() - t_tic
+    # FIXME: change the expression to compute the effective memory throughput!
+    A_eff = (3 * 2) / 1e9 * nx * ny * sizeof(Float64)  # Effective main memory access per iteration [GB]
+    t_it  = t_toc / niter                              # Execution time per iteration [s]
+    T_eff = A_eff / t_it                               # Effective memory throughput [GB/s]
+    
+    @printf(&quot;Time = %1.3f sec, T_eff = %1.3f GB/s \n&quot;, t_toc, T_eff)
+
+
+    if test == true
+        save(&quot;../test/qDx_p_ref_30_2D.jld&quot;, &quot;data&quot;, qDx_c[1:st:end,1:st:end])  # store case for reference testing
+        save(&quot;../test/qDy_p_ref_30_2D.jld&quot;, &quot;data&quot;, qDy_c[1:st:end,1:st:end])
+    end
+    
+    # Return qDx_p and qDy_p at final time
+    return [qDx_c[1:st:end,1:st:end], qDy_c[1:st:end,1:st:end]]   
+end
+
+
+
+if isinteractive()
+    porous_convection_2D_xpu(63, 500; do_visu=false, do_check=true,test=false)  # ny = 63
+end
+
+
+</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../computational-earthquake-physics/">« Computational Earthquake Physics</a><a class="docs-footer-nextpage" href="../benchmarks/">Benchmarks »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Monday 28 November 2022 21:53">Monday 28 November 2022</span>. Using Julia version 1.8.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
