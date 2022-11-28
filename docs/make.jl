@@ -7,6 +7,7 @@ using Documenter
 makedocs(
          sitename = "HydroMech.jl",
          modules  = [HydroMech, ParallelStencil, GeoParams],
+         doctest  = false,
          pages=[
                 "Home" => "index.md",
                 "Getting started" => 
