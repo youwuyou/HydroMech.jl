@@ -2,8 +2,6 @@
 
 [![CI action](https://github.com/youwuyou/HydroMech.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/youwuyou/HydroMech.jl/actions/workflows/ci.yml) 
 
-[![][docs-dev-img]][docs-dev-url]
-
 
 ## Description
 
