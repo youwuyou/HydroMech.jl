@@ -57,9 +57,8 @@ jobs:
       - run: |
           julia --project=docs -e '
             import Pkg; Pkg.add("Documenter")
-            using Documenter: doctest
             using HydroMech
-            doctest(HydroMech)'
+            '
       - run: julia --project=docs docs/make.jl
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
