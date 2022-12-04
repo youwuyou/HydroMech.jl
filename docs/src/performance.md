@@ -1,4 +1,63 @@
-# Distributed Computing
+## Improving the source code
+
+
+```bash
+# without visualization
+it = 1530, time = 5.027e-01 sec (@ T_eff = 23.00 GB/s) 
+it = 1531, time = 4.839e-01 sec (@ T_eff = 24.00 GB/s) 
+it = 1532, time = 4.861e-01 sec (@ T_eff = 24.00 GB/s) 
+it = 1533, time = 5.011e-01 sec (@ T_eff = 23.00 GB/s) 
+it = 1534, time = 4.852e-01 sec (@ T_eff = 24.00 GB/s) 
+it = 1535, time = 5.018e-01 sec (@ T_eff = 23.00 GB/s) 
+it = 1536, time = 4.849e-01 sec (@ T_eff = 24.00 GB/s) 
+```
+
+
+
+```bash
+# with visualization
+it = 1530, time = 5.132e-01 sec (@ T_eff = 23.00 GB/s) 
+it = 1531, time = 5.105e-01 sec (@ T_eff = 23.00 GB/s) 
+it = 1532, time = 5.286e-01 sec (@ T_eff = 22.00 GB/s) 
+it = 1533, time = 5.123e-01 sec (@ T_eff = 23.00 GB/s) 
+it = 1534, time = 5.308e-01 sec (@ T_eff = 22.00 GB/s) 
+it = 1535, time = 5.107e-01 sec (@ T_eff = 23.00 GB/s) 
+it = 1536, time = 5.233e-01 sec (@ T_eff = 22.00 GB/s) 
+```
+
+
+After some basic HPC-driven code improvement while making sure all the reference tests passed, the original 2D code has the following performance
+
+```bash
+# without visualization
+it = 1530, time = 4.946e-01 sec (@ T_eff = 23.00 GB/s) 
+it = 1531, time = 5.352e-01 sec (@ T_eff = 22.00 GB/s) 
+it = 1532, time = 4.941e-01 sec (@ T_eff = 23.00 GB/s) 
+it = 1533, time = 4.940e-01 sec (@ T_eff = 23.00 GB/s) 
+it = 1534, time = 5.163e-01 sec (@ T_eff = 22.00 GB/s) 
+it = 1535, time = 4.942e-01 sec (@ T_eff = 23.00 GB/s) 
+it = 1536, time = 4.942e-01 sec (@ T_eff = 23.00 GB/s) 
+```
+
+
+
+```bash
+# with visualization
+it = 1530, time = 4.619e-01 sec (@ T_eff = 25.00 GB/s) 
+it = 1531, time = 4.601e-01 sec (@ T_eff = 25.00 GB/s) 
+it = 1532, time = 4.899e-01 sec (@ T_eff = 24.00 GB/s) 
+it = 1533, time = 4.594e-01 sec (@ T_eff = 25.00 GB/s) 
+it = 1534, time = 4.651e-01 sec (@ T_eff = 25.00 GB/s) 
+it = 1535, time = 4.665e-01 sec (@ T_eff = 25.00 GB/s) 
+it = 1536, time = 4.837e-01 sec (@ T_eff = 24.00 GB/s) 
+```
+
+
+
+
+
+
+## Distributed Computing
 
 
 

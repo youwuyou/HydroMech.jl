@@ -31,7 +31,7 @@ makedocs(
                         "Computational Earthquake Physics" => "computational-earthquake-physics.md"
                     ],
 
-                "Distributed Computing" => "distributed-computing.md",
+                "Performance" => "performance.md",
                 "Benchmarks" => "benchmarks.md",
                 "Visualization" => "visualization.md",          
                 "Development" =>

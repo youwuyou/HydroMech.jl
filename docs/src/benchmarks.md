@@ -1,6 +1,7 @@
 # Benchmarks
 
 
+
 ## Porosity wave benchmark
 
 Using the decompaction weakening approach as in [Raess et al.](https://academic.oup.com/gji/article/218/3/1591/5497299?login=true). We set up the benchmark for the porosity wave regime as limit of two-phase flow. The goal of this benchmark is to verify the reproducibility of the methodology as described [here](methodology.md)
@@ -18,7 +19,14 @@ Using the decompaction weakening approach as in [Raess et al.](https://academic.
 
 *Resulting animation of the code provided in the [`HydroMech2D.jl`](https://github.com/omlins/ParallelStencil.jl/blob/main/miniapps/HydroMech2D.jl), which is the starting point of our implementation of the solver.*
 
-![2D wave](./assets/images/HydroMech2D.gif)
+`R=500`, `t=0.02`
+
+![2D wave](./assets/images/HydroMech2D_R500.gif)
+
+
+`R=1.0`, `t=0.2`
+
+![2D wave](./assets/images/HydroMech2D_R1.gif)
 
 
 
