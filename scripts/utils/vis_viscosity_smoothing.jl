@@ -1,4 +1,5 @@
 using GLMakie
+ENV["GKSwstype"]="nul"
 
 # lambda expression for the ηᵩ 
 # as defined in Räss et al. for the hydro-mech solver
@@ -28,7 +29,7 @@ function visualize()
     
     axislegend(ax)
     
-    save("smoothed_drop.png", fig)
+    save("smoothed_drop_cosh.png", fig)
     
     return fig
 
