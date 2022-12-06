@@ -129,21 +129,21 @@ iv). Incompressible fluid mass
 
 
     # Initial conditions
-    qDy      =   zeros(nx  ,ny+1)
-    Phi      = ϕ0*ones(nx  ,ny  )
-    Radc     =   zeros(nx  ,ny  )
-    Radc    .= [(((ix-1)*dx-0.5*lx)/λ/4.0)^2 + (((iy-1)*dy-0.25*ly)/λ)^2 for ix=1:size(Radc,1), iy=1:size(Radc,2)]
-    Phi[Radc.<1.0] .= Phi[Radc.<1.0] .+ ϕA
-    EtaC     = μs./Phi.*η2μs
-    K_muf    = k_μf0.*(Phi./ϕ0)
-    ϕ0bc     = mean.(Phi[:,end])
-    qDy[:,[1,end]] .= (ρsg.-ρfg).*(1.0.-ϕ0bc).*k_μf0.*(ϕ0bc./ϕ0).^nperm
-    Phi      = PTArray(Phi)
-    EtaC     = PTArray(EtaC)
-    K_muf    = PTArray(K_muf)
-    qDy      = PTArray(qDy)
-    t        = 0.0
-    it       = 1
+    qDy_cpu             =   zeros(nx  ,ny+1)
+    Phi_cpu             = ϕ0*ones(nx  ,ny  )
+    Radc                =   zeros(nx  ,ny  )
+    Radc               .= [(((ix-1)*dx-0.5*lx)/λ/4.0)^2 + (((iy-1)*dy-0.25*ly)/λ)^2 for ix=1:size(Radc,1), iy=1:size(Radc,2)]
+    Phi_cpu[Radc.<1.0] .= Phi_cpu[Radc.<1.0] .+ ϕA
+    EtaC_cpu            = μs./Phi_cpu.*η2μs
+    K_muf_cpu           = k_μf0.*(Phi_cpu./ϕ0)
+    ϕ0bc                = mean.(Phi_cpu[:,end])
+    qDy_cpu[:,[1,end]] .= (ρsg.-ρfg).*(1.0.-ϕ0bc).*k_μf0.*(ϕ0bc./ϕ0).^nperm
+    Phi                 = PTArray(Phi_cpu)
+    EtaC                = PTArray(EtaC_cpu)
+    K_muf               = PTArray(K_muf_cpu)
+    qDy                 = PTArray(qDy_cpu)
+    t                   = 0.0
+    it                  = 1
 
     # boundary condition
     freeslip = (freeslip_x=true, freeslip_y=true)
@@ -175,18 +175,25 @@ iv). Incompressible fluid mass
             if (iter==11)  global wtime0 = Base.time()  end
 
 
-            @parallel compute_params_∇!(EtaC, K_muf, Rog, ∇V, ∇qD, Phi, Pf, Pt, Vx, Vy, qDx, qDy, μs, η2μs, R, λPe, k_μf0, _ϕ0, nperm, θ_e, θ_k, ρfg, ρsg, ρgBG, _dx, _dy)
-            @parallel compute_RP!(dτPf, RPt, RPf, K_muf, ∇V, ∇qD, Pt, Pf, EtaC, Phi, Pfsc, Pfdmp, min_dxy2, _dx, _dy)
+            # @parallel compute_params_∇!(EtaC, K_muf, Rog, ∇V, ∇qD, Phi, Pf, Pt, Vx, Vy, qDx, qDy, μs, η2μs, R, λPe, k_μf0, _ϕ0, nperm, θ_e, θ_k, ρfg, ρsg, ρgBG, _dx, _dy)
+            # @parallel compute_RP!(dτPf, RPt, RPf, K_muf, ∇V, ∇qD, Pt, Pf, EtaC, Phi, Pfsc, Pfdmp, min_dxy2, _dx, _dy)
 
-            apply_free_slip!(freeslip, dτPf, nx, ny)
+            # apply_free_slip!(freeslip, dτPf, nx, ny)
  
-            @parallel compute_P_τ!(Pt, Pf, τxx, τyy, σxy, RPt, RPf, dτPf, Vx, Vy, ∇V, dτPt, μs, β_n, _dx, _dy)
-            @parallel compute_res!(Ry, dVxdτ, dVydτ, τxx, τyy, σxy, Pt, Rog, dampX, dampY, _dx, _dy)
+            # @parallel compute_P_τ!(Pt, Pf, τxx, τyy, σxy, RPt, RPf, dτPf, Vx, Vy, ∇V, dτPt, μs, β_n, _dx, _dy)
+            # @parallel compute_res!(Ry, dVxdτ, dVydτ, τxx, τyy, σxy, Pt, Rog, dampX, dampY, _dx, _dy)
 
-            @parallel compute_update!(Vx, Vy, qDx, qDy, Phi, dVxdτ, dVydτ, K_muf, Pf, Phi_o, ∇V, ∇V_o, dτV, ρfg, ρgBG, CN, dt, _dx, _dy)
+            # @parallel compute_update!(Vx, Vy, qDx, qDy, Phi, dVxdτ, dVydτ, K_muf, Pf, Phi_o, ∇V, ∇V_o, dτV, ρfg, ρgBG, CN, dt, _dx, _dy)
           
-            apply_free_slip!(freeslip, Vx, Vy, nx+1, ny+1)
-            apply_free_slip!(freeslip, qDx, qDy, nx+1, ny+1)
+            # apply_free_slip!(freeslip, Vx, Vy, nx+1, ny+1)
+            # apply_free_slip!(freeslip, qDx, qDy, nx+1, ny+1)
+
+            compute!(EtaC, K_muf, Rog, ∇V, ∇qD, Phi, Pf, Pt, Vx, Vy, qDx, qDy, μs, η2μs, R, λPe, k_μf0, _ϕ0, nperm, θ_e, θ_k, ρfg, ρsg, ρgBG, _dx, _dy,
+            dτPf, RPt, RPf, Pfsc, Pfdmp, min_dxy2,
+            freeslip, nx, ny, τxx, τyy, σxy,dτPt, β_n,
+            Ry, dVxdτ, dVydτ, dampX, dampY,
+            Phi_o, ∇V_o, dτV, CN, dt
+            )
 
 
             if mod(iter,nout)==0
@@ -239,8 +246,8 @@ iv). Incompressible fluid mass
 end
 
 
-# if isinteractive()
-#     HydroMech2D_incompressible(;t_tot_=0.02) # for reproducing porosity wave benchmark
-#     # HydroMech2D_incompressible(;t_tot_=0.1) # for reproducing porosity wave benchmark
-#     # HydroMech2D_incompressible(;t_tot_=0.0005) # for reproducing the test result
-# end/home/wyou/misc/git-julia/HydroMech.jl/docs
+if isinteractive()
+    HydroMech2D_incompressible(;t_tot_=0.02) # for reproducing porosity wave benchmark
+    # HydroMech2D_incompressible(;t_tot_=0.1) # for reproducing porosity wave benchmark
+    # HydroMech2D_incompressible(;t_tot_=0.0005) # for reproducing the test result
+end

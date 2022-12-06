@@ -59,3 +59,25 @@ end
 
     return
 end
+
+
+
+@inbounds function compute!(EtaC, K_muf, Rog, ∇V, ∇qD, Phi, Pf, Pt, Vx, Vy, qDx, qDy, μs, η2μs, R, λPe, k_μf0, _ϕ0, nperm, θ_e, θ_k, ρfg, ρsg, ρgBG, _dx, _dy,
+                  dτPf, RPt, RPf, Pfsc, Pfdmp, min_dxy2,
+                  freeslip, nx, ny, τxx, τyy, σxy,dτPt, β_n,
+                  Ry, dVxdτ, dVydτ, dampX, dampY,
+                  Phi_o, ∇V_o, dτV, CN, dt
+                  )
+    @parallel compute_params_∇!(EtaC, K_muf, Rog, ∇V, ∇qD, Phi, Pf, Pt, Vx, Vy, qDx, qDy, μs, η2μs, R, λPe, k_μf0, _ϕ0, nperm, θ_e, θ_k, ρfg, ρsg, ρgBG, _dx, _dy)
+    @parallel compute_RP!(dτPf, RPt, RPf, K_muf, ∇V, ∇qD, Pt, Pf, EtaC, Phi, Pfsc, Pfdmp, min_dxy2, _dx, _dy)
+
+    apply_free_slip!(freeslip, dτPf, nx, ny)
+
+    @parallel compute_P_τ!(Pt, Pf, τxx, τyy, σxy, RPt, RPf, dτPf, Vx, Vy, ∇V, dτPt, μs, β_n, _dx, _dy)
+    @parallel compute_res!(Ry, dVxdτ, dVydτ, τxx, τyy, σxy, Pt, Rog, dampX, dampY, _dx, _dy)
+
+    @parallel compute_update!(Vx, Vy, qDx, qDy, Phi, dVxdτ, dVydτ, K_muf, Pf, Phi_o, ∇V, ∇V_o, dτV, ρfg, ρgBG, CN, dt, _dx, _dy)
+  
+    apply_free_slip!(freeslip, Vx, Vy, nx+1, ny+1)
+    apply_free_slip!(freeslip, qDx, qDy, nx+1, ny+1)
+end

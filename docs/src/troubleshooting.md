@@ -2,8 +2,14 @@
 
 ## No solutions after certain iteration count
 
+**Status**
+
+[ ] Resolved 
+
 Using the 2D Hydro-mechanical solver for small R values, solution cannot be correctly plotted after a certain state has been reached. The solution can be correctly plotted until the 48th frame (included) as followed.
 
+
+**Description**
 
 `R=0.5`, `t=0.2`
 
@@ -32,6 +38,15 @@ Then at the frames after the 48th frame it looks identical to the 49th frame.
 
 
 ## Overhead brought by using MetaHydroMech.jl
+
+**Status**
+
+[x] Resolved 
+     - by calling only one `compute!()` kernel
+     - use the `const` to fix the type instability problem of PTArray
+
+
+**Description**
 
 Using the same pattern as `JustRelax.jl`, we added the `MetaHydroMech.jl` to predefine the environment needed for the use of the `ParallelStencil.jl`. However this brought us a significant loss in the performance. Before it was around 24 GB/s after the code improvement.
 

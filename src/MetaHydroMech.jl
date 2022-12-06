@@ -19,15 +19,17 @@ function environment!(model::PS_Setup{T,N}) where {T,N}
     Base.eval(Main, Meta.parse("using ParallelStencil.FiniteDifferences$(N)D"))
 
     # start ParallelStencil
+    # NOTE: the use of const PTArray boosts the performance significantly
+    #       which avoids the type instability
     global PTArray
     if model.device == :gpu
         eval(:(@init_parallel_stencil(CUDA, $T, $N)))
         Base.eval(Main, Meta.parse("using CUDA"))
-        eval(:(PTArray = CUDA.CuArray{$T,$N}))
+        eval(:(const PTArray = CUDA.CuArray{$T,$N}))
     else
         @eval begin
             @init_parallel_stencil(Threads, $T, $N)
-            PTArray = Array{$T,$N}
+            const PTArray = Array{$T,$N}
         end
     end
 
@@ -39,7 +41,7 @@ function environment!(model::PS_Setup{T,N}) where {T,N}
         export free_slip_x!, free_slip_y!, apply_free_slip!
 
         include(joinpath(@__DIR__, "incompressible/Temp.jl"))
-        export update_old!, compute_params_∇!, compute_RP!, compute_P_τ!, compute_res!, compute_update!
+        export update_old!, compute_params_∇!, compute_RP!, compute_P_τ!, compute_res!, compute_update!, compute!
     end
 end
 

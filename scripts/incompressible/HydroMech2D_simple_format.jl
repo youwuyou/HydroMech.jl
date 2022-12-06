@@ -353,8 +353,8 @@ iv). Incompressible fluid mass
 end
 
 
-if isinteractive()
-    HydroMech2D_incompressible(;t_tot_=0.02) # for reproducing porosity wave benchmark
-    # HydroMech2D_incompressible(;t_tot_=0.1) # for reproducing porosity wave benchmark
-    # HydroMech2D_incompressible(;t_tot_=0.0005) # for reproducing the test result
-end
+# if isinteractive()
+#     HydroMech2D_incompressible(;t_tot_=0.02) # for reproducing porosity wave benchmark
+#     # HydroMech2D_incompressible(;t_tot_=0.1) # for reproducing porosity wave benchmark
+#     # HydroMech2D_incompressible(;t_tot_=0.0005) # for reproducing the test result
+# end
