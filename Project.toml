@@ -5,6 +5,7 @@ version = "0.1.0"
 
 [deps]
 BSON = "fbb218c0-5317-5bc6-957e-2ee96dd4b1f0"
+BasicLU = "f55c55da-c227-4c78-8e30-b72a48476979"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 GeoParams = "e018b62d-d9de-4a26-8697-af89c310ae38"
