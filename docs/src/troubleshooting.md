@@ -1,10 +1,455 @@
 # Troubleshooting
 
-## No solutions after certain iteration count
+## Problem: CUDA-aware MPI does not work on cluster
+
+The MPI library we are using is the mpich of version 4.0.2, which was installed using spack, and is cuda-aware. Following is the description of the module.
+
+
+#### MPICH-4.0.2 itself is working on the cluster
+
+```@raw html
+<details><summary>See the content of the module here! </summary>
+```
+
+```bash
+#%Module1.0
+## Module file created by spack (https://github.com/spack/spack) on 2022-11-02 14:07:50.241360
+##
+## mpich@4.0.2%gcc@11.2.0~argobots+cuda+fortran+hcoll+hwloc+hydra+libxml2+pci~rocm+romio+slurm~two_level_namespace~vci~verbs+wrapperrpath cuda_arch=70 datatype-engine=auto device=ch4 netmod=ucx patches=d4c0e99 pmi=pmi2 arch=linux-rocky8-zen2/nny23wg
+##
+## Configure options: --disable-silent-rules --enable-shared --with-pm=hydra --enable-romio --without-ibverbs --enable-wrapper-rpath=yes --with-yaksa=/home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/yaksa-0.2-nis43l4sezzmot2oyaxzvj3zrtmmhbmr --with-hwloc=/home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/hwloc-2.8.0-s4ixhugy7todz4yqzefnyqwrihwp735v --with-slurm=yes --with-slurm-include=/cm/shared/apps/slurm/21.08.8/include --with-slurm-lib=/cm/shared/apps/slurm/21.08.8/lib --with-pmi=pmi2/simple --with-cuda=/home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/cuda-11.8.0-kh2t6kpkp54oq756ie2x3r7ywiwozwv7 --without-hip --with-device=ch4:ucx --with-ucx=/usr --enable-libxml2 --with-datatye-engine=auto --with-hcoll=/opt/mellanox/hcoll
+##
+
+
+module-whatis "MPICH is a high performance and widely portable implementation of the Message Passing Interface (MPI) standard."
+
+proc ModulesHelp { } {
+puts stderr "MPICH is a high performance and widely portable implementation of the"
+puts stderr "Message Passing Interface (MPI) standard."
+}
+
+
+prepend-path PATH "/home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/mpich-4.0.2-nny23wg4ku5utyrhdtw7ccz3nlgqmmsg/./bin"
+prepend-path MANPATH "/home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/mpich-4.0.2-nny23wg4ku5utyrhdtw7ccz3nlgqmmsg/./share/man"
+prepend-path PKG_CONFIG_PATH "/home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/mpich-4.0.2-nny23wg4ku5utyrhdtw7ccz3nlgqmmsg/./lib/pkgconfig"
+prepend-path CMAKE_PREFIX_PATH "/home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/mpich-4.0.2-nny23wg4ku5utyrhdtw7ccz3nlgqmmsg/./"
+setenv MPICC "/home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/mpich-4.0.2-nny23wg4ku5utyrhdtw7ccz3nlgqmmsg/bin/mpicc"
+setenv MPICXX "/home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/mpich-4.0.2-nny23wg4ku5utyrhdtw7ccz3nlgqmmsg/bin/mpic++"
+setenv MPIF77 "/home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/mpich-4.0.2-nny23wg4ku5utyrhdtw7ccz3nlgqmmsg/bin/mpif77"
+setenv MPIF90 "/home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/mpich-4.0.2-nny23wg4ku5utyrhdtw7ccz3nlgqmmsg/bin/mpif90"
+```
+```@raw html
+</details>
+```
+
+
+
+In order to check that the MPICH we are using is indeed working properly, we run a small device-to-device benchmark on the compute node which has 4 V100-GPUs attached to it.
+
+
+
+```bash
+# making sure we are running the benchmark using the correct library
+[wyou@racklette1 ~]$ which mpirun
+~/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/mpich-4.0.2-nny23wg4ku5utyrhdtw7ccz3nlgqmmsg/bin/mpirun
+
+# perform benchmark on gpus
+[wyou@racklette1 ~]$ srun -n 4 osu_alltoall -d cuda D D 
+Warning: OMB could not identify the local rank of the process.
+         This can lead to multiple processes using the same GPU.
+         Please use the get_local_rank script in the OMB repo for this.
+Warning: OMB could not identify the local rank of the process.
+         This can lead to multiple processes using the same GPU.
+         Please use the get_local_rank script in the OMB repo for this.
+Warning: OMB could not identify the local rank of the process.
+Warning: OMB could not identify the local rank of the process.
+         This can lead to multiple processes using the same GPU.
+         Please use the get_local_rank script in the OMB repo for this.
+         This can lead to multiple processes using the same GPU.
+         Please use the get_local_rank script in the OMB repo for this.
+
+# OSU MPI-CUDA All-to-All Personalized Exchange Latency Test v5.9
+# Size       Avg Latency(us)
+1                    1281.12
+2                    1289.98
+4                    1282.38
+8                    1287.97
+16                   1284.78
+32                   1288.85
+64                   1285.30
+128                  1288.92
+256                  1279.70
+512                  1288.87
+1024                 1285.93
+2048                 1290.65
+4096                 1289.12
+8192                 1298.43
+16384                 720.97
+32768                 723.08
+65536                 727.48
+131072                740.52
+262144                747.90
+524288               1341.46
+1048576               788.64
+```
+
+
+#### CUDA-aware MPI failed using julia
+
+After making sure that the MPI library is cuda-aware and works as expected, we now check on the usage of it using julia. And somehow `MPI.Init()` does not even work.
+
+
+```julia
+julia> using MPI
+
+julia> MPI.MPI_LIBRARY_VERSION_STRING
+"MPICH Version:\t4.0.2\nMPICH Release date:\tThu Apr  7 12:34:45 CDT 2022\nMPICH ABI:\t14:2:2\nMPICH Device:\tch4:ucx\nMPICH configure:\t--prefix=/home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/mpich-4.0.2-nny23wg4ku5utyrhdtw7ccz3nlgqmmsg --disable-silent-rules --enable-shared --with-pm=hydra --enable-romio --without-ibverbs --enable-wrapper-rpath=yes --with-yaksa=/home/wyou/" ⋯ 502 bytes ⋯ "-with-ucx=/usr --enable-libxml2 --with-datatye-engine=auto --with-hcoll=/opt/mellanox/hcoll\nMPICH CC:\t/home/wyou/spack/lib/spack/env/gcc/gcc    -O2\nMPICH CXX:\t/home/wyou/spack/lib/spack/env/gcc/g++   -O2\nMPICH F77:\t/home/wyou/spack/lib/spack/env/gcc/gfortran -fallow-argument-mismatch  -O2\nMPICH FC:\t/home/wyou/spack/lib/spack/env/gcc/gfortran -fallow-argument-mismatch  -O2\n"
+
+julia> MPI.Init()
+Abort(672779791): Fatal error in internal_Init: Other MPI error, error stack:
+internal_Init(59)....: MPI_Init(argc=(nil), argv=(nil)) failed
+MPII_Init_thread(209): 
+MPID_Init(359).......: 
+MPIR_pmi_init(141)...: PMI2_Job_GetId returned 14
+```
+
+
+#### MPI works in julia if using `mpiexecjl` (but only for helloworld)
+
+But surprisingly a simple gpu `hello_world` program works, in which we also ask it to print out the MPI version it is using after `using MPI` and it has the following output.
+
+
+```@raw html
+<details><summary> See the hello_world_gpu script here!</summary>
+```
+
+```bash
+# Julia MPI "Hello world" code
+
+using MPI, CUDA
+MPI.Init()
+
+
+comm = MPI.COMM_WORLD
+me   = MPI.Comm_rank(comm)
+
+# select device
+
+# COMM_TYPE_SHARED splits the communicator into subcommunicators
+# each of which can create a shared memory region
+
+comm_l = MPI.Comm_split_type(comm, MPI.MPI_COMM_TYPE_SHARED, me)
+me_l   = MPI.Comm_rank(comm_l)   # per node numbering to obtain the GPU ID
+GPU_ID = CUDA.device!(me_l)      # set specific CUDA device
+
+if me_l == 0
+  println(MPI.MPI_LIBRARY_VERSION_STRING)
+end
+
+sleep(0.1me)
+println("Hello world, I am $(me) of $(MPI.Comm_size(comm)) using $(GPU_ID)")
+MPI.Barrier(comm)
+```
+
+
+```@raw html
+</details>
+```
+
+```@raw html
+<details><summary> See the output of the helloworkd_gpu, which works!</summary>
+```
+
+```bash
+[wyou@racklette1 l8_scripts]$ mpiexecjl -n 4 julia --project l8_hello_mpi_gpu.jl 
+MPICH Version:	4.0.2
+MPICH Release date:	Thu Apr  7 12:34:45 CDT 2022
+MPICH ABI:	14:2:2
+MPICH Device:	ch4:ucx
+MPICH configure:	--prefix=/home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/mpich-4.0.2-nny23wg4ku5utyrhdtw7ccz3nlgqmmsg --disable-silent-rules --enable-shared --with-pm=hydra --enable-romio --without-ibverbs --enable-wrapper-rpath=yes --with-yaksa=/home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/yaksa-0.2-nis43l4sezzmot2oyaxzvj3zrtmmhbmr --with-hwloc=/home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/hwloc-2.8.0-s4ixhugy7todz4yqzefnyqwrihwp735v --with-slurm=yes --with-slurm-include=/cm/shared/apps/slurm/21.08.8/include --with-slurm-lib=/cm/shared/apps/slurm/21.08.8/lib --with-pmi=pmi2/simple --with-cuda=/home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/cuda-11.8.0-kh2t6kpkp54oq756ie2x3r7ywiwozwv7 --without-hip --with-device=ch4:ucx --with-ucx=/usr --enable-libxml2 --with-datatye-engine=auto --with-hcoll=/opt/mellanox/hcoll
+MPICH CC:	/home/wyou/spack/lib/spack/env/gcc/gcc    -O2
+MPICH CXX:	/home/wyou/spack/lib/spack/env/gcc/g++   -O2
+MPICH F77:	/home/wyou/spack/lib/spack/env/gcc/gfortran -fallow-argument-mismatch  -O2
+MPICH FC:	/home/wyou/spack/lib/spack/env/gcc/gfortran -fallow-argument-mismatch  -O2
+
+Hello world, I am 0 of 4 using CuDevice(0)
+Hello world, I am 1 of 4 using CuDevice(1)
+Hello world, I am 2 of 4 using CuDevice(2)
+Hello world, I am 3 of 4 using CuDevice(3)
+```
+
+
+```@raw html
+</details>
+```
+
+However the `alltoall_test_cuda.jl` script failed
+
+```@raw html
+<details><summary>See the `alltoall_test_cuda.jl` script here! </summary>
+```
+
+```julia
+using MPI
+using CUDA
+
+MPI.Init()
+comm = MPI.COMM_WORLD
+rank = MPI.Comm_rank(comm)
+size = MPI.Comm_size(comm)
+dst = mod(rank+1, size)
+src = mod(rank-1, size)
+
+println("rank=$rank, size=$size, dst=$dst, src=$src")
+N = 4
+send_mesg = CuArray{Float64}(undef, N)
+recv_mesg = CuArray{Float64}(undef, N)
+fill!(send_mesg, Float64(rank))
+#rreq = MPI.Irecv!(recv_mesg, src,  src+32, comm)
+MPI.Sendrecv!(send_mesg, dst, 0, recv_mesg, src, 0, comm)
+println("recv_mesg on proc $rank: $recv_mesg")
+MPI.Finalize()
+```
+
+```@raw html
+</details>
+```
+
+
+```@raw html
+<details><summary>See the error message here! </summary>
+```
+```bash
+[wyou@racklette1 debug]$ ls
+alltoall_test_cuda.jl  mpi_communication.jl  mpi_cuda_sendrecv.jl  runme.sh  test.jl
+[wyou@racklette1 debug]$ vim alltoall_test_cuda.jl 
+[wyou@racklette1 debug]$ mpiexecjl -n 4 julia --project alltoall_test_cuda.jl 
+rank=2, size=4, dst=3, src=1
+rank=0, size=4, dst=1, src=3
+rank=3, size=4, dst=0, src=2
+rank=1, size=4, dst=2, src=0
+
+signal (11): Segmentation fault
+in expression starting at /home/wyou/misc/git-julia/pde-on-gpu-wu/lecture8/scripts/debug/alltoall_test_cuda.jl:17
+__memmove_avx_unaligned at /lib64/libc.so.6 (unknown line)
+uct_mm_ep_am_short at /usr/lib64/libuct.so.0 (unknown line)
+ucp_tag_send_nbx at /lib64/libucp.so.0 (unknown line)
+MPIDI_UCX_send.constprop.0.isra.0 at /home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/mpich-4.0.2-nny23wg4ku5utyrhdtw7ccz3nlgqmmsg/lib/libmpi.so (unknown line)
+MPIR_Sendrecv_impl at /home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/mpich-4.0.2-nny23wg4ku5utyrhdtw7ccz3nlgqmmsg/lib/libmpi.so (unknown line)
+MPI_Sendrecv at /home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/mpich-4.0.2-nny23wg4ku5utyrhdtw7ccz3nlgqmmsg/lib/libmpi.so (unknown line)
+Sendrecv! at /home/wyou/.julia/packages/MPI/08SPr/src/pointtopoint.jl:380 [inlined]
+Sendrecv! at /home/wyou/.julia/packages/MPI/08SPr/src/pointtopoint.jl:389
+unknown function (ip: 0x1554fa9e6a8d)
+_jl_invoke at /buildworker/worker/package_linux64/build/src/gf.c:2247 [inlined]
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2429
+jl_apply at /buildworker/worker/package_linux64/build/src/julia.h:1788 [inlined]
+do_call at /buildworker/worker/package_linux64/build/src/interpreter.c:126
+eval_value at /buildworker/worker/package_linux64/build/src/interpreter.c:215
+eval_stmt_value at /buildworker/worker/package_linux64/build/src/interpreter.c:166 [inlined]
+eval_body at /buildworker/worker/package_linux64/build/src/interpreter.c:587
+jl_interpret_toplevel_thunk at /buildworker/worker/package_linux64/build/src/interpreter.c:731
+jl_toplevel_eval_flex at /buildworker/worker/package_linux64/build/src/toplevel.c:885
+jl_toplevel_eval_flex at /buildworker/worker/package_linux64/build/src/toplevel.c:830
+jl_toplevel_eval_in at /buildworker/worker/package_linux64/build/src/toplevel.c:944
+
+signal (11): Segmentation fault
+in expression starting at /home/wyou/misc/git-julia/pde-on-gpu-wu/lecture8/scripts/debug/alltoall_test_cuda.jl:17
+__memmove_avx_unaligned at /lib64/libc.so.6 (unknown line)
+uct_mm_ep_am_short at /usr/lib64/libuct.so.0 (unknown line)
+ucp_tag_send_nbx at /lib64/libucp.so.0 (unknown line)
+MPIDI_UCX_send.constprop.0.isra.0 at /home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/mpich-4.0.2-nny23wg4ku5utyrhdtw7ccz3nlgqmmsg/lib/libmpi.so (unknown line)
+MPIR_Sendrecv_impl at /home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/mpich-4.0.2-nny23wg4ku5utyrhdtw7ccz3nlgqmmsg/lib/libmpi.so (unknown line)
+MPI_Sendrecv at /home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/mpich-4.0.2-nny23wg4ku5utyrhdtw7ccz3nlgqmmsg/lib/libmpi.so (unknown line)
+Sendrecv! at /home/wyou/.julia/packages/MPI/08SPr/src/pointtopoint.jl:380 [inlined]
+Sendrecv! at /home/wyou/.julia/packages/MPI/08SPr/src/pointtopoint.jl:389
+unknown function (ip: 0x1554fa9e6b1d)
+_jl_invoke at /buildworker/worker/package_linux64/build/src/gf.c:2247 [inlined]
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2429
+jl_apply at /buildworker/worker/package_linux64/build/src/julia.h:1788 [inlined]
+do_call at /buildworker/worker/package_linux64/build/src/interpreter.c:126
+eval_value at /buildworker/worker/package_linux64/build/src/interpreter.c:215
+eval_stmt_value at /buildworker/worker/package_linux64/build/src/interpreter.c:166 [inlined]
+eval_body at /buildworker/worker/package_linux64/build/src/interpreter.c:587
+jl_interpret_toplevel_thunk at /buildworker/worker/package_linux64/build/src/interpreter.c:731
+jl_toplevel_eval_flex at /buildworker/worker/package_linux64/build/src/toplevel.c:885
+jl_toplevel_eval_flex at /buildworker/worker/package_linux64/build/src/toplevel.c:830
+jl_toplevel_eval_in at /buildworker/worker/package_linux64/build/src/toplevel.c:944
+eval at ./boot.jl:373 [inlined]
+include_string at ./loading.jl:1196
+_jl_invoke at /buildworker/worker/package_linux64/build/src/gf.c:2247 [inlined]
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2429
+_include at ./loading.jl:1253
+include at ./Base.jl:418
+_jl_invoke at /buildworker/worker/package_linux64/build/src/gf.c:2247 [inlined]
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2429
+exec_options at ./client.jl:292
+eval at ./boot.jl:373 [inlined]
+include_string at ./loading.jl:1196
+_jl_invoke at /buildworker/worker/package_linux64/build/src/gf.c:2247 [inlined]
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2429
+_start at ./client.jl:495
+_include at ./loading.jl:1253
+jfptr__start_22567.clone_1 at /cm/shared/apps/easybuild-apps/software/Julia/1.7.3-linux-x86_64/lib/julia/sys.so (unknown line)
+_jl_invoke at /buildworker/worker/package_linux64/build/src/gf.c:2247 [inlined]
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2429
+include at ./Base.jl:418
+_jl_invoke at /buildworker/worker/package_linux64/build/src/gf.c:2247 [inlined]
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2429
+jl_apply at /buildworker/worker/package_linux64/build/src/julia.h:1788 [inlined]
+true_main at /buildworker/worker/package_linux64/build/src/jlapi.c:559
+jl_repl_entrypoint at /buildworker/worker/package_linux64/build/src/jlapi.c:701
+main at julia (unknown line)
+__libc_start_main at /lib64/libc.so.6 (unknown line)
+unknown function (ip: 0x400808)
+Allocations: 35530272 (Pool: 35518374; Big: 11898); GC: 34
+exec_options at ./client.jl:292
+_start at ./client.jl:495
+jfptr__start_22567.clone_1 at /cm/shared/apps/easybuild-apps/software/Julia/1.7.3-linux-x86_64/lib/julia/sys.so (unknown line)
+_jl_invoke at /buildworker/worker/package_linux64/build/src/gf.c:2247 [inlined]
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2429
+jl_apply at /buildworker/worker/package_linux64/build/src/julia.h:1788 [inlined]
+true_main at /buildworker/worker/package_linux64/build/src/jlapi.c:559
+jl_repl_entrypoint at /buildworker/worker/package_linux64/build/src/jlapi.c:701
+main at julia (unknown line)
+__libc_start_main at /lib64/libc.so.6 (unknown line)
+unknown function (ip: 0x400808)
+Allocations: 35529115 (Pool: 35517210; Big: 11905); GC: 35
+
+signal (11): Segmentation fault
+in expression starting at /home/wyou/misc/git-julia/pde-on-gpu-wu/lecture8/scripts/debug/alltoall_test_cuda.jl:17
+__memmove_avx_unaligned at /lib64/libc.so.6 (unknown line)
+uct_mm_ep_am_short at /usr/lib64/libuct.so.0 (unknown line)
+ucp_tag_send_nbx at /lib64/libucp.so.0 (unknown line)
+MPIDI_UCX_send.constprop.0.isra.0 at /home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/mpich-4.0.2-nny23wg4ku5utyrhdtw7ccz3nlgqmmsg/lib/libmpi.so (unknown line)
+MPIR_Sendrecv_impl at /home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/mpich-4.0.2-nny23wg4ku5utyrhdtw7ccz3nlgqmmsg/lib/libmpi.so (unknown line)
+MPI_Sendrecv at /home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/mpich-4.0.2-nny23wg4ku5utyrhdtw7ccz3nlgqmmsg/lib/libmpi.so (unknown line)
+Sendrecv! at /home/wyou/.julia/packages/MPI/08SPr/src/pointtopoint.jl:380 [inlined]
+Sendrecv! at /home/wyou/.julia/packages/MPI/08SPr/src/pointtopoint.jl:389
+unknown function (ip: 0x1554fa9e6acd)
+_jl_invoke at /buildworker/worker/package_linux64/build/src/gf.c:2247 [inlined]
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2429
+jl_apply at /buildworker/worker/package_linux64/build/src/julia.h:1788 [inlined]
+do_call at /buildworker/worker/package_linux64/build/src/interpreter.c:126
+eval_value at /buildworker/worker/package_linux64/build/src/interpreter.c:215
+eval_stmt_value at /buildworker/worker/package_linux64/build/src/interpreter.c:166 [inlined]
+eval_body at /buildworker/worker/package_linux64/build/src/interpreter.c:587
+jl_interpret_toplevel_thunk at /buildworker/worker/package_linux64/build/src/interpreter.c:731
+jl_toplevel_eval_flex at /buildworker/worker/package_linux64/build/src/toplevel.c:885
+jl_toplevel_eval_flex at /buildworker/worker/package_linux64/build/src/toplevel.c:830
+jl_toplevel_eval_in at /buildworker/worker/package_linux64/build/src/toplevel.c:944
+eval at ./boot.jl:373 [inlined]
+include_string at ./loading.jl:1196
+_jl_invoke at /buildworker/worker/package_linux64/build/src/gf.c:2247 [inlined]
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2429
+_include at ./loading.jl:1253
+include at ./Base.jl:418
+_jl_invoke at /buildworker/worker/package_linux64/build/src/gf.c:2247 [inlined]
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2429
+exec_options at ./client.jl:292
+_start at ./client.jl:495
+jfptr__start_22567.clone_1 at /cm/shared/apps/easybuild-apps/software/Julia/1.7.3-linux-x86_64/lib/julia/sys.so (unknown line)
+_jl_invoke at /buildworker/worker/package_linux64/build/src/gf.c:2247 [inlined]
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2429
+jl_apply at /buildworker/worker/package_linux64/build/src/julia.h:1788 [inlined]
+true_main at /buildworker/worker/package_linux64/build/src/jlapi.c:559
+jl_repl_entrypoint at /buildworker/worker/package_linux64/build/src/jlapi.c:701
+main at julia (unknown line)
+__libc_start_main at /lib64/libc.so.6 (unknown line)
+unknown function (ip: 0x400808)
+Allocations: 35528548 (Pool: 35516640; Big: 11908); GC: 35
+
+signal (11): Segmentation fault
+in expression starting at /home/wyou/misc/git-julia/pde-on-gpu-wu/lecture8/scripts/debug/alltoall_test_cuda.jl:17
+__memmove_avx_unaligned at /lib64/libc.so.6 (unknown line)
+uct_mm_ep_am_short at /usr/lib64/libuct.so.0 (unknown line)
+ucp_tag_send_nbx at /lib64/libucp.so.0 (unknown line)
+MPIDI_UCX_send.constprop.0.isra.0 at /home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/mpich-4.0.2-nny23wg4ku5utyrhdtw7ccz3nlgqmmsg/lib/libmpi.so (unknown line)
+MPIR_Sendrecv_impl at /home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/mpich-4.0.2-nny23wg4ku5utyrhdtw7ccz3nlgqmmsg/lib/libmpi.so (unknown line)
+MPI_Sendrecv at /home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/mpich-4.0.2-nny23wg4ku5utyrhdtw7ccz3nlgqmmsg/lib/libmpi.so (unknown line)
+Sendrecv! at /home/wyou/.julia/packages/MPI/08SPr/src/pointtopoint.jl:380 [inlined]
+Sendrecv! at /home/wyou/.julia/packages/MPI/08SPr/src/pointtopoint.jl:389
+unknown function (ip: 0x1554fa9e6b1d)
+_jl_invoke at /buildworker/worker/package_linux64/build/src/gf.c:2247 [inlined]
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2429
+jl_apply at /buildworker/worker/package_linux64/build/src/julia.h:1788 [inlined]
+do_call at /buildworker/worker/package_linux64/build/src/interpreter.c:126
+eval_value at /buildworker/worker/package_linux64/build/src/interpreter.c:215
+eval_stmt_value at /buildworker/worker/package_linux64/build/src/interpreter.c:166 [inlined]
+eval_body at /buildworker/worker/package_linux64/build/src/interpreter.c:587
+jl_interpret_toplevel_thunk at /buildworker/worker/package_linux64/build/src/interpreter.c:731
+jl_toplevel_eval_flex at /buildworker/worker/package_linux64/build/src/toplevel.c:885
+jl_toplevel_eval_flex at /buildworker/worker/package_linux64/build/src/toplevel.c:830
+jl_toplevel_eval_in at /buildworker/worker/package_linux64/build/src/toplevel.c:944
+eval at ./boot.jl:373 [inlined]
+include_string at ./loading.jl:1196
+_jl_invoke at /buildworker/worker/package_linux64/build/src/gf.c:2247 [inlined]
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2429
+_include at ./loading.jl:1253
+include at ./Base.jl:418
+_jl_invoke at /buildworker/worker/package_linux64/build/src/gf.c:2247 [inlined]
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2429
+exec_options at ./client.jl:292
+_start at ./client.jl:495
+jfptr__start_22567.clone_1 at /cm/shared/apps/easybuild-apps/software/Julia/1.7.3-linux-x86_64/lib/julia/sys.so (unknown line)
+_jl_invoke at /buildworker/worker/package_linux64/build/src/gf.c:2247 [inlined]
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2429
+jl_apply at /buildworker/worker/package_linux64/build/src/julia.h:1788 [inlined]
+true_main at /buildworker/worker/package_linux64/build/src/jlapi.c:559
+jl_repl_entrypoint at /buildworker/worker/package_linux64/build/src/jlapi.c:701
+main at julia (unknown line)
+__libc_start_main at /lib64/libc.so.6 (unknown line)
+unknown function (ip: 0x400808)
+Allocations: 34728965 (Pool: 34717306; Big: 11659); GC: 34
+
+===================================================================================
+=   BAD TERMINATION OF ONE OF YOUR APPLICATION PROCESSES
+=   PID 2207490 RUNNING AT racklette1
+=   EXIT CODE: 139
+=   CLEANING UP REMAINING PROCESSES
+=   YOU CAN IGNORE THE BELOW CLEANUP MESSAGES
+===================================================================================
+YOUR APPLICATION TERMINATED WITH THE EXIT STRING: Segmentation fault (signal 11)
+This typically refers to a problem with your application.
+Please see the FAQ page for debugging suggestions
+ERROR: failed process: Process(`/home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.2.0/mpich-4.0.2-nny23wg4ku5utyrhdtw7ccz3nlgqmmsg/bin/mpiexec -n 4 julia alltoall_test_cuda.jl`, ProcessExited(139)) [139]
+
+Stacktrace:
+ [1] pipeline_error
+   @ ./process.jl:540 [inlined]
+ [2] run(::Cmd; wait::Bool)
+   @ Base ./process.jl:455
+ [3] run(::Cmd)
+   @ Base process.jl:453
+ [4] (::var"#1#2")(exe::Cmd)
+   @ Main none:4
+ [5] (::MPI.var"#28#29"{var"#1#2"})(cmd::Cmd)
+   @ MPI ~/.julia/packages/MPI/08SPr/src/environment.jl:25
+ [6] _mpiexec(fn::MPI.var"#28#29"{var"#1#2"})
+   @ MPI ~/.julia/packages/MPI/08SPr/deps/deps.jl:6
+ [7] mpiexec(fn::var"#1#2")
+   @ MPI ~/.julia/packages/MPI/08SPr/src/environment.jl:25
+ [8] top-level scope
+   @ none:4
+
+
+```
+```@raw html
+</details>
+```
+
+
+
+
+
+
+
+## Problem:  No solutions after certain iteration count
 
 **Status**
 
-[ ] Resolved 
+[ x ] Resolved 
+
+     - normal behavior to be expected
 
 Using the 2D Hydro-mechanical solver for small R values, solution cannot be correctly plotted after a certain state has been reached. The solution can be correctly plotted until the 48th frame (included) as followed.
 
@@ -37,7 +482,7 @@ Then at the frames after the 48th frame it looks identical to the 49th frame.
 
 
 
-## Overhead brought by using MetaHydroMech.jl
+## Problem:  Overhead brought by using MetaHydroMech.jl
 
 **Status**
 
