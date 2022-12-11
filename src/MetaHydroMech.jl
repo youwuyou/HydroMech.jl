@@ -42,6 +42,11 @@ function environment!(model::PS_Setup{T,N}) where {T,N}
 
         include(joinpath(@__DIR__, "incompressible/Temp.jl"))
         export update_old!, compute_params_∇!, compute_RP!, compute_P_τ!, compute_res!, compute_update!, compute!
+
+        include(joinpath(@__DIR__, "compressible/Temp.jl"))
+        export update_old_compressible!, compute_Kd!, compute_ɑ!, compute_B!, compute_RP_compressible!
+
+
     end
 end
 

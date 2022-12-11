@@ -1,7 +1,7 @@
 using HydroMech
 
 # setup ParallelStencil.jl environment
-model = PS_Setup(:cpu, Float64, 2)
+model = PS_Setup(:gpu, Float64, 2)
 environment!(model)
 
 using Statistics, Printf, LinearAlgebra
@@ -59,7 +59,8 @@ iv). Incompressible fluid mass
   
     # Physics - non-dimensional parameters
     η2μs     = 10.0            # bulk/shear viscosity ration
-    R        = 500.0           # Compaction/decompaction strength ratio for bulk rheology
+    # R        = 500.0           # Compaction/decompaction strength ratio for bulk rheology
+    R        = 1000.0
     nperm    = 3.0             # Carman-Kozeny exponent
     ϕ0       = 0.01            # reference porosity
     ra       = 2               # radius of initil porosity perturbation
@@ -154,9 +155,6 @@ iv). Incompressible fluid mass
     length_Ry   = length(Ry)
     length_RPf  = length(RPf)
     data_size   = sizeof(eltype(Phi))
-    # data_size   = sizeof(Data.Number)
-    # data_size   = 8
-
  
     # Preparation of visualisation
     if DO_VIZ
@@ -191,7 +189,7 @@ iv). Incompressible fluid mass
             compute!(EtaC, K_muf, Rog, ∇V, ∇qD, Phi, Pf, Pt, Vx, Vy, qDx, qDy, μs, η2μs, R, λPe, k_μf0, _ϕ0, nperm, θ_e, θ_k, ρfg, ρsg, ρgBG, _dx, _dy,
             dτPf, RPt, RPf, Pfsc, Pfdmp, min_dxy2,
             freeslip, nx, ny, τxx, τyy, σxy,dτPt, β_n,
-            Ry, dVxdτ, dVydτ, dampX, dampY,
+            Rx, Ry, dVxdτ, dVydτ, dampX, dampY,
             Phi_o, ∇V_o, dτV, CN, dt
             )
 
