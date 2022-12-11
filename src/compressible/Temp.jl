@@ -1,4 +1,5 @@
 # Compute kernel of the compressible two-phase flow solver
+# included in the package by MetaHydroMech.jl
 
 @inbounds @parallel function update_old_compressible!(Phi_o::Data.Array, ∇V_o::Data.Array, Pt_o::Data.Array, Pf_o::Data.Array, Phi::Data.Array, ∇V::Data.Array,  Pt::Data.Array, Pf::Data.Array)
     @all(Phi_o) = @all(Phi)

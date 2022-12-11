@@ -7,26 +7,29 @@ module HydroMech
 
 # define constant for redirection of the files
 # const PROJECT_ROOT = pkgdir(HydroMech)
+const DO_VIZ    = false
+const SAVE_TEST = false
+
+export DO_VIZ, SAVE_TEST
+
 
 using Reexport
 @reexport using ParallelStencil
-@reexport using ImplicitGlobalGrid
+# @reexport using ImplicitGlobalGrid
 using LinearAlgebra
 using Printf
 using CUDA
 using MPI
 
+# using an intermediate script to include methods dependent on ParallelStencil.jl
 include("MetaHydroMech.jl")
 
 export PS_Setup, environment!, ps_reset!
 
 
-# Alphabetical include of submodules, except computation-submodules (below)
-include("../scripts/compressible/HydroMech2D.jl")
-include("../scripts/incompressible/HydroMech2D.jl")
-
 # export types/functions that we desire to display on the HydroMech.jl API page
-export HydroMech2D_compressible, HydroMech2D_incompressible
+include("Equations.jl")
+export CompressibleHydroMechEquations, IncompressibleHydroMechEquations
 
 
 end # module HydroMech

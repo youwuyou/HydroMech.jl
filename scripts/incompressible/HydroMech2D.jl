@@ -7,10 +7,6 @@ environment!(model)
 using Statistics, Printf, LinearAlgebra
 
 
-# Packages used by the application for output
-const DO_VIZ    = false
-const SAVE_TEST = false
-
 ## visualization
 @static if DO_VIZ
     using Plots
@@ -23,34 +19,6 @@ end
 
 
 ##################################################
-@doc raw"""
-    IncompressibleHydroMechEquations2D
-The incompressible two-phase flow equations without the inertial term. 
-
-i). Total momentum (solid matrix and fluid)
-```math
-\nabla \cdot \underline{\underline{\sigma}} + g \rho^{[t]} = 0
-```
-
-
-ii). Fluid momentum
-```math
-v^{[D]} = -\frac{k^{[\phi]}}{\mu^{[f]}}(\nabla p^{[f]}-\rho^{[f]}g)
-```
-
-
-iii). Incompressible solid mass
-```math
-\nabla \cdot v^{[s]} = - \frac{p^{[t]}-p^{[f]}}{\eta^{[\phi]}(1-\phi)}
-```
-
-
-iv). Incompressible fluid mass
-```math
-\nabla \cdot v^{[D]} = \frac{p^{[t]}-p^{[f]}}{\eta^{[\phi]}(1-\phi)}
-```
-
-"""
 @views function HydroMech2D_incompressible(;t_tot_)
     # Physics - scales
     ρfg      = 1.0             # fluid rho*g
@@ -59,8 +27,7 @@ iv). Incompressible fluid mass
   
     # Physics - non-dimensional parameters
     η2μs     = 10.0            # bulk/shear viscosity ration
-    # R        = 500.0           # Compaction/decompaction strength ratio for bulk rheology
-    R        = 1000.0
+    R        = 500.0           # Compaction/decompaction strength ratio for bulk rheology
     nperm    = 3.0             # Carman-Kozeny exponent
     ϕ0       = 0.01            # reference porosity
     ra       = 2               # radius of initil porosity perturbation
@@ -244,8 +211,8 @@ iv). Incompressible fluid mass
 end
 
 
-if isinteractive()
-    HydroMech2D_incompressible(;t_tot_=0.02) # for reproducing porosity wave benchmark
-    # HydroMech2D_incompressible(;t_tot_=0.1) # for reproducing porosity wave benchmark
-    # HydroMech2D_incompressible(;t_tot_=0.0005) # for reproducing the test result
-end
+# if isinteractive()
+#     HydroMech2D_incompressible(;t_tot_=0.02) # for reproducing porosity wave benchmark
+#     # HydroMech2D_incompressible(;t_tot_=0.1) # for reproducing porosity wave benchmark
+#     # HydroMech2D_incompressible(;t_tot_=0.0005) # for reproducing the test result
+# end

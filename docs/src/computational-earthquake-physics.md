@@ -53,7 +53,7 @@ NOTE: in general, coupling among processes triggers non-linear interactions that
 > Assumption: Existence of an absolute shear stress limit $\sigma_\text{yield}$ for a body and after reaching this limit *plastic yielding* occurs.
 
 
-[Plastic yielding](https://static.cambridge.org/binary/version/id/urn:cambridge.org:id:binary:20190507095603410-0152:9781316534243:14314fig12_5.png?pub-status=live)
+![Plastic yielding](https://static.cambridge.org/binary/version/id/urn:cambridge.org:id:binary:20190507095603410-0152:9781316534243:14314fig12_5.png?pub-status=live)
 
 
 Formulations based on the simplified Griffith theory:
@@ -65,7 +65,7 @@ $$\sigma_\text{yield} = \begin{cases} \sigma_c + \gamma_\text{int}P, & P > \frac
 
 Or more compactly
 
-$$\sigma_\text{yield} = \max [0, \min(\sigma_c + \gamma_\text{int} P^{[t]}, \sigma_t + \gamma_\text{int} P^{[t]})] $$
+$$\sigma_\text{yield} = \max [0, \min(\sigma_c + \gamma_\text{int} P^{[t]}, \sigma_t + \gamma_\text{int} P^{[t]})]$$
 
 **Case 2: Fluid-bearing rocks**
 
@@ -77,11 +77,11 @@ where $\sigma_c$ and $\sigma_t$ are respectively *compressive length* and *tensi
 
 Or using effective pressure for the formulation
 
-$$\sigma_\text{yield} = \max [0, \min(\sigma_c + \gamma_\text{int} P_\text{eff}, \sigma_t + \gamma_\text{int} P_\text{eff})] $$
+$$\sigma_\text{yield} = \max [0, \min(\sigma_c + \gamma_\text{int} P_\text{eff}, \sigma_t + \gamma_\text{int} P_\text{eff})]$$
 
 
 
-> Yield point: the point on a stress-strain curve that indicates the limit of elastic behavior and the beginning of plastic behavior [wiki](https://www.wikiwand.com/en/Yield_(engineering))
+> NOTE: Yield point - the point on a stress-strain curve that indicates the limit of elastic behavior and the beginning of plastic behavior [wiki](https://www.wikiwand.com/en/Yield_(engineering))
 
 
 ## Two-phase flow problems
