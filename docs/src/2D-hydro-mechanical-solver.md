@@ -73,6 +73,13 @@ NOTE 2: Porosity-dependent viscosity is given by $\eta^{[\phi]} = K_p \frac{\eta
 
 - used in the H-MEC model
 
+- to add the compressible terms for the solid & fluid mass, following changes are made in comparison to the incompressible solver
+
+    - precomputation of parameters: drained bulk modulus `Kd`, Biot-Willis coefficient `ɑ`, Skempton coefficient `B`
+
+    - the residual calculation of the incompressible solver `RPt`, `RPf` has additional terms
+
+
 
 *i). Total momentum (solid matrix and fluid)*
 
@@ -107,7 +114,6 @@ $$\eta^{[\phi]} = \frac{2m}{1+m} \frac{\eta_{s(vp)}}{\phi} =^{m=1} \frac{\eta_{s
 
 - geometrical factor m = 1 for cylindrical pores
 - effective visco-plastic shear viscosity of the solid matrix ↔ $\eta_{s(vp)}$
-
 
 
 
