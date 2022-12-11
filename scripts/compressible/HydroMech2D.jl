@@ -1,7 +1,7 @@
 using HydroMech
 
 # setup ParallelStencil.jl environment
-model = PS_Setup(:gpu, Float64, 2)
+model = PS_Setup(:cpu, Float64, 2)
 environment!(model)
 
 using Statistics, Printf, LinearAlgebra
