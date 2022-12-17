@@ -1,7 +1,7 @@
 # For HydroMech.jl API
 
 @doc raw"""
-    CompressibleHydroMechEquations
+    CompressibleTPF
 The compressible two-phase flow equations without the inertial term. 
 
 i). Total momentum (solid matrix and fluid)
@@ -28,12 +28,12 @@ iv). Compressible fluid mass
 ```
 
 """
-function CompressibleHydroMechEquations()
+function CompressibleTPF()
 
 end
 
 @doc raw"""
-    IncompressibleHydroMechEquations
+    IncompressibleHydroMech
 The incompressible two-phase flow equations without the inertial term. 
 
 i). Total momentum (solid matrix and fluid)
@@ -60,7 +60,7 @@ iv). Incompressible fluid mass
 ```
 
 """
-function IncompressibleHydroMechEquations()
+function IncompressibleTPF()
 
 end
 

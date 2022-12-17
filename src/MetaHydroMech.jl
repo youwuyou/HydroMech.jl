@@ -18,10 +18,7 @@ function environment!(model::PS_Setup{T,N}) where {T,N}
     Base.eval(@__MODULE__, Meta.parse("using ParallelStencil.FiniteDifferences$(N)D"))
     Base.eval(Main, Meta.parse("using ParallelStencil.FiniteDifferences$(N)D"))
 
-    # start ParallelStencil
-    # NOTE: the use of const PTArray boosts the performance significantly
-    #       which avoids the type instability
-    global PTArray
+    # using const PTArray to avoid type instability
     if model.device == :gpu
         eval(:(@init_parallel_stencil(CUDA, $T, $N)))
         Base.eval(Main, Meta.parse("using CUDA"))
@@ -37,15 +34,27 @@ function environment!(model::PS_Setup{T,N}) where {T,N}
     @eval begin
         export USE_GPU, PTArray
 
+        #==============  BOUNDARY CONDITION ================#
         include(joinpath(@__DIR__, "boundaryconditions/BoundaryConditions.jl"))
         export free_slip_x!, free_slip_y!, apply_free_slip!
 
-        include(joinpath(@__DIR__, "incompressible/Temp.jl"))
-        export update_old!, compute_params_∇!, compute_RP!, compute_P_τ!, compute_res!, compute_update!, compute!
+        #==============  CONSERVATION LAWS ================#
+        include(joinpath(@__DIR__, "equations/MassConservation.jl"))
+        export compute_residual_mass_law!, compute_pressure!, compute_tensor!, compute_porosity!
 
-        include(joinpath(@__DIR__, "compressible/Temp.jl"))
-        export update_old_compressible!, compute_Kd!, compute_ɑ!, compute_B!, compute_RP_compressible!
+        include(joinpath(@__DIR__, "equations/MomentumConservation.jl"))
+        export compute_residual_momentum_law!, compute_velocity!
 
+        #=================== SOLVERS ======================#
+        # Two-phase flow solvers
+        include(joinpath(@__DIR__, "solvers/TPFCommon.jl"))
+        export compute_params_∇!
+
+        include(joinpath(@__DIR__, "solvers/TPFIncompressible.jl"))
+        export update_old!, solve!
+
+        include(joinpath(@__DIR__, "solvers/TPFCompressible.jl"))
+        export update_old!, compute_Kd!, compute_ɑ!, compute_B!, solve!
 
     end
 end
