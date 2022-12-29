@@ -14,6 +14,7 @@ makedocs(
                     [
                             "Overview" => "overview.md",
                             "Methodology" => "methodology.md",
+                            "Tutorial" => "tutorial.md"
                     ],
                 "Solvers" =>
                     [
@@ -44,7 +45,7 @@ makedocs(
                 "Reference" => 
                     [
                         "HydroMech.jl" => "hydromech.md",
-                        
+
                         "PTsolvers/JustRelax.jl" => 
                                             [ "Overview"    =>  "justrelax-overview.md",
                                               "Source code" => [

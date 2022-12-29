@@ -23,3 +23,5 @@ HydroMech.jl
 ## Testing
 
 - unit and reference testing are included within the `test` folder
+
+- currently only the reference test for incompressible TPF solver is availble using the porosity wave benchmark
