@@ -6,16 +6,17 @@ A collection of hydro-mechanical solvers for incompressible and compressible 2-p
 module HydroMech
 
 # define constant for redirection of the files
-# const PROJECT_ROOT = pkgdir(HydroMech)
-const DO_VIZ    = true
-const SAVE_TEST = false
+# const DO_VIZ    = true
+# const SAVE_TEST = false
+global DO_VIZ    = true::Bool
+global SAVE_TEST = false::Bool
 
 export DO_VIZ, SAVE_TEST
 
-
 using Reexport
-@reexport using ParallelStencil
-# @reexport using ImplicitGlobalGrid
+@reexport using ParallelStencil       # for kernels
+# @reexport using ImplicitGlobalGrid  # for MPI
+
 using LinearAlgebra
 using Printf
 using CUDA

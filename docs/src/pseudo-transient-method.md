@@ -123,10 +123,22 @@ The Pseudo-Transient Method (PT method), is an iterative method which is:
 </details>
 ```
 
-# Accelerated Pseudo-Transient Method
+## Classification of the PT Method
+
+The PT method can be classified differently as the first-order PT method and the accelerated PT method.
+
+
+### First-order PT Method
+
+The first order PT method performs the pseudo-time stepping based on a first-order scheme by introducing the pseudo-transient
+term in the form of $\frac{\partial}{\partial \tau}$. A physical property A is updated at each PT iteration, using the current values of pseudo-time steps and residuals.
+
+### Accelerated PT Method
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6553699.svg)](https://doi.org/10.5281/zenodo.6553699)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6553714.svg)](https://doi.org/10.5281/zenodo.6553714)
+
+The accelerated PT method is based on a second-order scheme, where a pseudo-transient term in the form of $\alpha \frac{\partial^2}{\partial \tau^2} + \frac{\partial}{\partial \tau}$ is introduced. The name of the method comes from the fact that it can significantly enhance the convergence rates of the algorithm when selecting the appropriate damping parameter α.
 
 
 Followingly we abstract some important aspects reported in the paper "Assessing the robustness and scalability of the accelerated pseudo-transient method [Räss et al. (2022)](https://gmd.copernicus.org/articles/15/5757/2022/), in which the accelerated PT method was introduced.
@@ -161,48 +173,3 @@ A physically motivated derivation is well-presented . To understand how powerful
 > "The PT methods build on a physical description of a process. It therefore becomes possible to model strongly nonlinear processes and achieve convergence starting from nearly arbitrary initial conditions."
 
 The accelerated PT method for elliptic equations is mathematically equivalent to the second-order Richardson rule.
-
-
-## Numerics
-
-### Convergence
-
-The convergence rate of the *accelerated PT method* is very sensitive to the iteration parameters' choice.
-
-
-### Iteration parameters
-
-The choice of the iteration parameters are essential for the accelerated PT method as the method is highly sensitive to it.
-
-By analysing the equations of the basic physical processes in their continuous form, we can select the optimal iteration parameters. For more information regarding how to choose the optimal iterations parameters see [here](iteration-parameters.md).
-
-
-
-### Boundary conditions (B.C.)
-
-> "The choice of the type of boundary conditions affects only the values of the optimal iteration parameters and does not limit the generality of the method"
-
-
-### Robustness
-
-
-
-## Performance
-
-#### Choice of physical processes
-
-The choice of transient physical processes influences the performance of iterative methods.
-
-
-#### CPU-based
-
-
-#### GPU-based
-
-- Weak scaling benchmarks with more than 96% parallel efficiency on 2197 Nvidia Tesla P100 GPUs on the *Piz Daint* supercomputer [[Räss et al. (2022)](https://gmd.copernicus.org/articles/15/5757/2022/)]
-
-
-
-
-
-

@@ -1,3 +1,215 @@
+## Benchmarking for GPUs communication
+
+- Goal: find out the best algorithm out of the `tuned` module
+
+### Allreduce
+
+Firstly let's check which algorithms we can choose within the Open MPI source code
+
+```C
+/* valid values for coll_tuned_allreduce_forced_algorithm */
+static const mca_base_var_enum_value_t allreduce_algorithms[] = {
+    {0, "ignore"},
+    {1, "basic_linear"},
+    {2, "nonoverlapping"},
+    {3, "recursive_doubling"},
+    {4, "ring"},
+    {5, "segmented_ring"},
+    {6, "rabenseifner"},
+    {0, NULL}
+};
+```
+
+
+```bash
+# firstly we run a benchmark of allreduce without specifying the wanted algorithm for allreduce
+[wyou@racklette1 ~]$ $(which mpirun) -x PATH=$PATH -x LD_LIBRARY_PATH=$LD_LIBRARY_PATH -n 8 --hostfile ./4nodes osu_allreduce -f -m 100000:5242880 -i 1000 -M 50000000 -d cuda D D
+
+# OSU MPI-CUDA Allreduce Latency Test v5.9
+# Size       Avg Latency(us)   Min Latency(us)   Max Latency(us)  Iterations
+100000                188.91            181.70            206.18        1000
+200000                340.12            326.85            367.30        1000
+400000                653.49            624.81            726.20        1000
+800000               1288.01           1237.06           1401.81        1000
+1600000              2500.98           2428.03           2685.87        1000
+3200000              4835.77           4681.47           5213.42        1000
+```
+
+
+
+
+```bash
+[wyou@racklette1 ~]$ $(which mpirun) -x PATH=$PATH -x LD_LIBRARY_PATH=$LD_LIBRARY_PATH -n 8 --hostfile ./4nodes -mca coll_tuned_use_dynamic_rules 1 -mca coll_tuned_allreduce_algorithm 0 osu_allreduce -f -m 100000:5242880 -i 1000 -M 50000000 -d cuda D D
+
+# OSU MPI-CUDA Allreduce Latency Test v5.9
+# Size       Avg Latency(us)   Min Latency(us)   Max Latency(us)  Iterations
+100000                188.91            181.73            204.79        1000
+200000                340.95            329.31            369.09        1000
+400000                653.47            625.27            726.33        1000
+800000               1287.86           1239.01           1416.19        1000
+1600000              2461.00           2388.66           2638.03        1000
+3200000              5091.87           4950.36           5581.74        1000
+
+
+[wyou@racklette1 ~]$ $(which mpirun) -x PATH=$PATH -x LD_LIBRARY_PATH=$LD_LIBRARY_PATH -n 8 --hostfile ./4nodes -mca coll_tuned_use_dynamic_rules 1 -mca coll_tuned_allreduce_algorithm 1 osu_allreduce -f -m 100000:5242880 -i 1000 -M 50000000 -d cuda D D
+
+# OSU MPI-CUDA Allreduce Latency Test v5.9
+# Size       Avg Latency(us)   Min Latency(us)   Max Latency(us)  Iterations
+100000                282.38            234.93            326.64        1000
+200000                531.14            437.42            618.39        1000
+400000               1785.82           1535.04           1995.28        1000
+800000               3124.20           2489.11           3370.94        1000
+1600000              6652.87           5687.09           7141.06        1000
+3200000             12774.89          11590.45          13431.57        1000
+[wyou@racklette1 ~]$ $(which mpirun) -x PATH=$PATH -x LD_LIBRARY_PATH=$LD_LIBRARY_PATH -n 8 --hostfile ./4nodes -mca coll_tuned_use_dynamic_rules 1 -mca coll_tuned_allreduce_algorithm 2 osu_allreduce -f -m 100000:5242880 -i 1000 -M 50000000 -d cuda D D
+
+# OSU MPI-CUDA Allreduce Latency Test v5.9
+# Size       Avg Latency(us)   Min Latency(us)   Max Latency(us)  Iterations
+100000                235.63            187.88            279.57        1000
+200000                426.25            335.17            512.48        1000
+400000                928.40            724.02           1117.93        1000
+800000               2028.55           1418.95           2265.75        1000
+1600000              4333.00           3402.03           4806.96        1000
+3200000              8644.57           7506.92           9277.69        1000
+[wyou@racklette1 ~]$ $(which mpirun) -x PATH=$PATH -x LD_LIBRARY_PATH=$LD_LIBRARY_PATH -n 8 --hostfile ./4nodes -mca coll_tuned_use_dynamic_rules 1 -mca coll_tuned_allreduce_algorithm 3 osu_allreduce -f -m 100000:5242880 -i 1000 -M 50000000 -d cuda D D
+
+# OSU MPI-CUDA Allreduce Latency Test v5.9
+# Size       Avg Latency(us)   Min Latency(us)   Max Latency(us)  Iterations
+100000                225.09            215.85            242.03        1000
+200000                420.43            401.66            455.58        1000
+400000                965.17            872.88           1046.27        1000
+800000               1840.35           1756.94           1925.51        1000
+1600000              3476.31           3229.06           3797.04        1000
+3200000              6619.64           6226.03           7271.89        1000
+[wyou@racklette1 ~]$ $(which mpirun) -x PATH=$PATH -x LD_LIBRARY_PATH=$LD_LIBRARY_PATH -n 8 --hostfile ./4nodes -mca coll_tuned_use_dynamic_rules 1 -mca coll_tuned_allreduce_algorithm 4 osu_allreduce -f -m 100000:5242880 -i 1000 -M 50000000 -d cuda D D
+
+# OSU MPI-CUDA Allreduce Latency Test v5.9
+# Size       Avg Latency(us)   Min Latency(us)   Max Latency(us)  Iterations
+100000                190.26            180.55            204.62        1000
+200000                343.24            329.08            363.92        1000
+400000                643.02            615.56            681.21        1000
+800000               1240.29           1195.60           1309.38        1000
+1600000              2379.18           2324.61           2489.97        1000
+3200000              5013.59           4896.93           5356.24        1000
+[wyou@racklette1 ~]$ $(which mpirun) -x PATH=$PATH -x LD_LIBRARY_PATH=$LD_LIBRARY_PATH -n 8 --hostfile ./4nodes -mca coll_tuned_use_dynamic_rules 1 -mca coll_tuned_allreduce_algorithm 5 osu_allreduce -f -m 100000:5242880 -i 1000 -M 50000000 -d cuda D D
+
+# OSU MPI-CUDA Allreduce Latency Test v5.9
+# Size       Avg Latency(us)   Min Latency(us)   Max Latency(us)  Iterations
+100000                189.72            181.01            202.38        1000
+200000                343.51            326.18            368.11        1000
+400000                644.34            616.66            683.36        1000
+800000               1242.93           1198.71           1309.88        1000
+1600000              2382.34           2321.88           2502.16        1000
+3200000              5042.74           4899.61           5478.59        1000
+[wyou@racklette1 ~]$ $(which mpirun) -x PATH=$PATH -x LD_LIBRARY_PATH=$LD_LIBRARY_PATH -n 8 --hostfile ./4nodes -mca coll_tuned_use_dynamic_rules 1 -mca coll_tuned_allreduce_algorithm 6 osu_allreduce -f -m 100000:5242880 -i 1000 -M 50000000 -d cuda D D
+
+# OSU MPI-CUDA Allreduce Latency Test v5.9
+# Size       Avg Latency(us)   Min Latency(us)   Max Latency(us)  Iterations
+100000                189.19            182.10            205.89        1000
+200000                340.91            329.06            371.53        1000
+400000                650.34            620.61            727.53        1000
+800000               1295.93           1239.08           1422.91        1000
+1600000              2485.25           2386.89           2693.46        1000
+3200000              4825.75           4705.17           5159.61        1000
+```
+
+### All to all
+
+Same idea as above for allreduce, firstly let's check which algorithms we can choose within the Open MPI source code
+
+
+```C
+/* valid values for coll_tuned_alltoall_forced_algorithm */
+static const mca_base_var_enum_value_t alltoall_algorithms[] = {
+    {0, "ignore"},
+    {1, "linear"},
+    {2, "pairwise"},
+    {3, "modified_bruck"},
+    {4, "linear_sync"},
+    {5, "two_proc"},
+    {0, NULL}
+};
+```
+
+
+
+```bash
+[wyou@racklette1 ~]$ $(which mpirun) -x PATH=$PATH -x LD_LIBRARY_PATH=$LD_LIBRARY_PATH -n 8 --hostfile ./4nodes -npernode 640 -mca coll_tuned_use_dynamic_rules 1 -mca coll_tuned_alltoall_algorithm 0 osu_alltoall -f -m 100000:5242880 -i 1000 -M 50000000 -d cuda D D
+
+# OSU MPI-CUDA All-to-All Personalized Exchange Latency Test v5.9
+# Size       Avg Latency(us)   Min Latency(us)   Max Latency(us)  Iterations
+100000                425.38            415.71            438.20        1000
+200000                581.33            533.73            608.03        1000
+400000                984.05            863.74           1042.04        1000
+800000               1853.05           1626.89           1954.92        1000
+^[[A^[[B1600000              3679.50           3348.85           3887.69        1000
+3200000              7477.47           6683.02           7870.87        1000
+[wyou@racklette1 ~]$ $(which mpirun) -x PATH=$PATH -x LD_LIBRARY_PATH=$LD_LIBRARY_PATH -n 8 --hostfile ./4nodes -npernode 640 -mca coll_tuned_use_dynamic_rules 1 -mca coll_tuned_alltoall_algorithm 0 osu_alltoall -f -m 100000:5242880 -i 1000 -M 50000000 -d cuda D D
+
+# OSU MPI-CUDA All-to-All Personalized Exchange Latency Test v5.9
+# Size       Avg Latency(us)   Min Latency(us)   Max Latency(us)  Iterations
+100000                420.33            406.24            430.64        1000
+200000                577.81            526.10            607.41        1000
+400000               1000.56            905.46           1062.94        1000
+800000               1917.38           1825.38           1981.69        1000
+1600000              3655.49           3450.80           3819.48        1000
+3200000              7194.83           6974.15           7478.59        1000
+[wyou@racklette1 ~]$ $(which mpirun) -x PATH=$PATH -x LD_LIBRARY_PATH=$LD_LIBRARY_PATH -n 8 --hostfile ./4nodes -npernode 640 -mca coll_tuned_use_dynamic_rules 1 -mca coll_tuned_alltoall_algorithm 1 osu_alltoall -f -m 100000:5242880 -i 1000 -M 50000000 -d cuda D D
+
+# OSU MPI-CUDA All-to-All Personalized Exchange Latency Test v5.9
+# Size       Avg Latency(us)   Min Latency(us)   Max Latency(us)  Iterations
+100000                419.08            404.52            441.48        1000
+200000                572.08            523.91            601.56        1000
+400000               1014.65            931.97           1073.41        1000
+800000               1911.66           1782.75           1972.40        1000
+1600000              3651.50           3410.06           3797.36        1000
+3200000              7235.04           6925.96           7401.02        1000
+[wyou@racklette1 ~]$ $(which mpirun) -x PATH=$PATH -x LD_LIBRARY_PATH=$LD_LIBRARY_PATH -n 8 --hostfile ./4nodes -npernode 640 -mca coll_tuned_use_dynamic_rules 1 -mca coll_tuned_alltoall_algorithm 2 osu_alltoall -f -m 100000:5242880 -i 1000 -M 50000000 -d cuda D D
+
+# OSU MPI-CUDA All-to-All Personalized Exchange Latency Test v5.9
+# Size       Avg Latency(us)   Min Latency(us)   Max Latency(us)  Iterations
+100000                568.08            542.70            591.89        1000
+200000                751.72            699.47            797.65        1000
+400000               1122.81           1071.18           1180.94        1000
+800000               1882.45           1820.97           1953.62        1000
+1600000              3414.76           3294.48           3518.95        1000
+3200000              6453.58           6211.23           6598.42        1000
+[wyou@racklette1 ~]$ $(which mpirun) -x PATH=$PATH -x LD_LIBRARY_PATH=$LD_LIBRARY_PATH -n 8 --hostfile ./4nodes -npernode 640 -mca coll_tuned_use_dynamic_rules 1 -mca coll_tuned_alltoall_algorithm 3 osu_alltoall -f -m 100000:5242880 -i 1000 -M 50000000 -d cuda D D
+
+# OSU MPI-CUDA All-to-All Personalized Exchange Latency Test v5.9
+# Size       Avg Latency(us)   Min Latency(us)   Max Latency(us)  Iterations
+100000              17079.06          14886.58          18710.19        1000
+200000              34372.18          30221.50          36966.10        1000
+^C^C[wyou@racklette1 ~]$ ^C
+[wyou@racklette1 ~]$ $(which mpirun) -x PATH=$PATH -x LD_LIBRARY_PATH=$LD_LIBRARY_PATH -n 8 --hostfile ./4nodes -npernode 640 -mca coll_tuned_use_dynamic_rules 1 -mca coll_tuned_alltoall_algorithm 4 osu_alltoall -f -m 100000:5242880 -i 1000 -M 50000000 -d cuda D D
+
+# OSU MPI-CUDA All-to-All Personalized Exchange Latency Test v5.9
+# Size       Avg Latency(us)   Min Latency(us)   Max Latency(us)  Iterations
+100000                424.61            414.48            434.69        1000
+200000                601.03            574.16            623.39        1000
+400000               1074.30            991.98           1134.93        1000
+800000               2026.54           1856.56           2126.15        1000
+1600000              3897.18           3565.51           4089.64        1000
+3200000              7654.23           6901.72           8030.77        1000
+[wyou@racklette1 ~]$ $(which mpirun) -x PATH=$PATH -x LD_LIBRARY_PATH=$LD_LIBRARY_PATH -n 8 --hostfile ./4nodes -npernode 640 -mca coll_tuned_use_dynamic_rules 1 -mca coll_tuned_alltoall_algorithm 5 osu_alltoall -f -m 100000:5242880 -i 1000 -M 50000000 -d cuda D D
+
+# OSU MPI-CUDA All-to-All Personalized Exchange Latency Test v5.9
+# Size       Avg Latency(us)   Min Latency(us)   Max Latency(us)  Iterations
+[racklette1:1216262] *** An error occurred in MPI_Alltoall
+[racklette1:1216262] *** reported by process [3756916737,2]
+[racklette1:1216262] *** on communicator MPI_COMM_WORLD
+[racklette1:1216262] *** MPI_ERR_UNSUPPORTED_OPERATION: operation not supported
+[racklette1:1216262] *** MPI_ERRORS_ARE_FATAL (processes in this communicator will now abort,
+[racklette1:1216262] ***    and potentially your MPI job)
+[racklette1:1216244] 7 more processes have sent help message help-mpi-errors.txt / mpi_errors_are_fatal
+[racklette1:1216244] Set MCA parameter "orte_base_help_aggregate" to 0 to see all help / error messages
+
+
+```
+
+
+
+
 ## Improving the source code
 
 

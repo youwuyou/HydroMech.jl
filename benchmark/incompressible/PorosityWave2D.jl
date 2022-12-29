@@ -1,13 +1,13 @@
 using HydroMech
 
 # setup ParallelStencil.jl environment
-model = PS_Setup(:cpu, Float64, 2)
+model = PS_Setup(:gpu, Float64, 2)
 environment!(model)
 
 using Statistics, Printf, LinearAlgebra
 
 
-## visualization
+# visualization
 @static if DO_VIZ
     using Plots
 end
@@ -77,7 +77,7 @@ end
     Phi_o    = @zeros(nx  ,ny  )
     Pt       = @zeros(nx  ,ny  )
     Pf       = @zeros(nx  ,ny  )
-    Rhog      = @zeros(nx  ,ny  )
+    Rhog     = @zeros(nx  ,ny  )
     ∇V       = @zeros(nx  ,ny  )
     ∇V_o     = @zeros(nx  ,ny  )
     ∇qD      = @zeros(nx  ,ny  )
@@ -121,7 +121,6 @@ end
     _ϕ0         = 1.0/ϕ0
     length_Ry   = length(Ry)
     length_RPf  = length(RPf)
-    data_size   = sizeof(eltype(Phi))
  
     # Preparation of visualisation
     if DO_VIZ
@@ -133,35 +132,15 @@ end
   
     # Time loop
     while t<t_tot
-        @parallel update_old!(Phi_o, ∇V_o, Phi, ∇V)
-        err=2*ε; iter=1; niter=0
-       
-        while err > ε && iter <= iterMax
-            if (iter==11)  global wtime0 = Base.time()  end
 
-            # involve the incompressible TPF solver
-            solve!(EtaC, K_muf, Rhog, ∇V, ∇qD, Phi, Pf, Pt, Vx, Vy, qDx, qDy, μs, η2μs, R, λPe, k_μf0, _ϕ0, nperm, θ_e, θ_k, ρfg, ρsg, ρgBG, _dx, _dy,
-            dτPf, RPt, RPf, Pfsc, Pfdmp, min_dxy2,
-            freeslip, nx, ny, τxx, τyy, σxy,dτPt, β_n,
-            Rx, Ry, dVxdτ, dVydτ, dampX, dampY,
-            Phi_o, ∇V_o, dτV, CN, dt
-            )
-
-
-            if mod(iter,nout)==0
-                global norm_Ry, norm_RPf
-                norm_Ry = norm(Ry)/length_Ry; norm_RPf = norm(RPf)/length_RPf; err = max(norm_Ry, norm_RPf)
-                # @printf("iter = %d, err = %1.3e [norm_Ry=%1.3e, norm_RPf=%1.3e] \n", iter, err, norm_Ry, norm_RPf)
-            end
-            iter+=1; niter+=1
-        end
-   
-        # Performance
-        wtime    = Base.time() - wtime0
-        A_eff    = (8*2)/1e9*nx*ny*data_size  # Effective main memory access per iteration [GB] (Lower bound of required memory access: Te has to be read and written: 2 whole-array memaccess; Ci has to be read: : 1 whole-array memaccess)
-        wtime_it = wtime/(niter-10)                     # Execution time per iteration [s]
-        T_eff    = A_eff/wtime_it                       # Effective memory throughput [GB/s]
-        @printf("it = %d, time = %1.3e sec (@ T_eff = %1.2f GB/s) \n", it, wtime, round(T_eff, sigdigits=2))
+        # Pseudo-time loop solving
+        solve!(EtaC, K_muf, Rhog, ∇V, ∇qD, Phi, Pf, Pt, Vx, Vy, qDx, qDy, μs, η2μs, R, λPe, k_μf0, _ϕ0, nperm, θ_e, θ_k, ρfg, ρsg, ρgBG, _dx, _dy,
+                  dτPf, RPt, RPf, Pfsc, Pfdmp, min_dxy2,
+                  freeslip, nx, ny, τxx, τyy, σxy,dτPt, β_n,
+                  Rx, Ry, dVxdτ, dVydτ, dampX, dampY,
+                  Phi_o, ∇V_o, dτV, CN, dt,
+                  ε, iterMax, nout, length_Ry, length_RPf, it
+              )
 
 
         # Visualisation
@@ -198,8 +177,8 @@ end
 end
 
 
-# if isinteractive()
-#     PorosityWave2D_incompressible(;t_tot_=0.02) # for reproducing porosity wave benchmark
-#     # PorosityWave2D_incompressible(;t_tot_=0.1) # for reproducing porosity wave benchmark
-#     # PorosityWave2D_incompressible(;t_tot_=0.0005) # for reproducing the test result
-# end
+if isinteractive()
+    PorosityWave2D_incompressible(;t_tot_=0.02) # for reproducing porosity wave benchmark
+    # PorosityWave2D_incompressible(;t_tot_=0.1) # for reproducing porosity wave benchmark
+    # PorosityWave2D_incompressible(;t_tot_=0.0005) # for reproducing the test result
+end

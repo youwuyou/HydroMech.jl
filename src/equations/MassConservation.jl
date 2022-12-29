@@ -3,9 +3,11 @@
 # i). incompressible
 # ii). compressible
 
-#=================== EXPLICIT EULER ======================#
+#=================== RESIDUAL UPDATES ======================#
+# compute continuity equation for single phase flow problem
 
-# compute mass conservation residual (incompressible)
+
+# compute mass conservation residual for two phase flow problem (incompressible)
 @inbounds @parallel function compute_residual_mass_law!(dτPt::Data.Number, dτPf::Data.Array, RPt::Data.Array, RPf::Data.Array, K_muf::Data.Array, ∇V::Data.Array, ∇qD::Data.Array, Pt::Data.Array, Pf::Data.Array, EtaC::Data.Array, Phi::Data.Array, Pfsc::Data.Number, Pfdmp::Data.Number, min_dxy2::Data.Number, _dx::Data.Number, _dy::Data.Number)
     @inn(dτPf) = min_dxy2/@maxloc(K_muf)/4.1/Pfsc
 
@@ -19,9 +21,8 @@
 end
 
 
-# compute mass conservation residual (compressible)
+# compute mass conservation residual  for two phase flow problem (compressible)
 @inbounds @parallel function compute_residual_mass_law!(dτPf::Data.Array, RPt::Data.Array, RPf::Data.Array, K_muf::Data.Array, ∇V::Data.Array, ∇qD::Data.Array, Pt::Data.Array, Pf::Data.Array, EtaC::Data.Array, Phi::Data.Array, Kd::Data.Array, ɑ::Data.Array, Pt_o::Data.Array, Pf_o::Data.Array, B::Data.Array, Pfsc::Data.Number, Pfdmp::Data.Number, min_dxy2::Data.Number, _dx::Data.Number, _dy::Data.Number, dt::Data.Number)
-    # FIXME: perhaps changes needed here
      @inn(dτPf) = min_dxy2/@maxloc(K_muf)/4.1/Pfsc
  
      # residual f_pt for compressible solid mass
@@ -34,19 +35,6 @@ end
  
      return
  end
-
-
-
-#=================== IMPLICIT EULER ======================#
-
-
-
-
-
-
-
-
-
 
 
 

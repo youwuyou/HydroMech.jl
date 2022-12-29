@@ -82,11 +82,3 @@ $$\sigma_\text{yield} = \max [0, \min(\sigma_c + \gamma_\text{int} P_\text{eff},
 
 
 > NOTE: Yield point - the point on a stress-strain curve that indicates the limit of elastic behavior and the beginning of plastic behavior [wiki](https://www.wikiwand.com/en/Yield_(engineering))
-
-
-## Two-phase flow problems
-
-> Focus: on the evolution of coupled fluid-solid systems, where the fluid is a low viscosity phase, which could be gas, liquid, melt and their mixtures.
-
-> Special analytical and numerical treatment are needed due to intrinsic coupling between fluid percolation and deformation of the solid matrix (Gerya)
-

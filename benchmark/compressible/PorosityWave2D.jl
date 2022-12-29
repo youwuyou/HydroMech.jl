@@ -1,7 +1,7 @@
 using HydroMech
 
 # setup ParallelStencil.jl environment
-model = PS_Setup(:cpu, Float64, 2)
+model = PS_Setup(:gpu, Float64, 2)
 environment!(model)
 
 using Statistics, Printf, LinearAlgebra
@@ -28,7 +28,7 @@ end
   
     # Physics - non-dimensional parameters
     η2μs     = 10.0            # bulk/shear viscosity ration
-    R        = 500.0         # Compaction/decompaction strength ratio for bulk rheology
+    R        = 500.0           # Compaction/decompaction strength ratio for bulk rheology
     # R        = 1.0             # Compaction/decompaction strength ratio for bulk rheology
     nperm    = 3.0             # Carman-Kozeny exponent
     ϕ0       = 0.01            # reference porosity
@@ -154,37 +154,16 @@ end
     # Time loop
     while t<t_tot
 
-        # update Pt_o, Pf_o in compressible case
-        @parallel update_old!(Phi_o, ∇V_o, Pt_o, Pf_o, Phi, ∇V,  Pt, Pf)
-        err=2*ε; iter=1; niter=0
-       
-        while err > ε && iter <= iterMax
-            if (iter==11)  global wtime0 = Base.time()  end
-
-            # involve the compressible TPF solver
-            solve!(EtaC, K_muf, Rhog, ∇V, ∇qD, Phi, Pf, Pt, Vx, Vy, qDx, qDy, μs, η2μs, R, λPe, k_μf0, _ϕ0, nperm, θ_e, θ_k, ρfg, ρsg, ρgBG, _dx, _dy,
-            dτPf, RPt, RPf, Pfsc, Pfdmp, min_dxy2,
-            freeslip, nx, ny, τxx, τyy, σxy,dτPt, β_n,
-            Rx, Ry, dVxdτ, dVydτ, dampX, dampY,
-            Phi_o, ∇V_o, dτV, CN, dt,
-            Kd, Kphi, _Ks, µ, ɑ, βd, βs, βf, B, Pt_o, Pf_o
-            )
-
-            if mod(iter,nout)==0
-                global norm_Ry, norm_RPf
-                norm_Ry = norm(Ry)/length_Ry; norm_RPf = norm(RPf)/length_RPf; err = max(norm_Ry, norm_RPf)
-                # @printf("iter = %d, err = %1.3e [norm_Ry=%1.3e, norm_RPf=%1.3e] \n", iter, err, norm_Ry, norm_RPf)
-            end
-            iter+=1; niter+=1
-        end
+        # Pseudo-time loop solving
+        solve!(EtaC, K_muf, Rhog, ∇V, ∇qD, Phi, Pf, Pt, Vx, Vy, qDx, qDy, μs, η2μs, R, λPe, k_μf0, _ϕ0, nperm, θ_e, θ_k, ρfg, ρsg, ρgBG, _dx, _dy,
+        dτPf, RPt, RPf, Pfsc, Pfdmp, min_dxy2,
+        freeslip, nx, ny, τxx, τyy, σxy,dτPt, β_n,
+        Rx, Ry, dVxdτ, dVydτ, dampX, dampY,
+        Phi_o, ∇V_o, dτV, CN, dt,
+        Kd, Kphi, _Ks, µ, ɑ, βd, βs, βf, B, Pt_o, Pf_o,
+        ε, iterMax, nout, length_Ry, length_RPf, it
+        )
    
-        # Performance
-        wtime    = Base.time() - wtime0
-        A_eff    = (8*2)/1e9*nx*ny*data_size  # Effective main memory access per iteration [GB] (Lower bound of required memory access: Te has to be read and written: 2 whole-array memaccess; Ci has to be read: : 1 whole-array memaccess)
-        wtime_it = wtime/(niter-10)                     # Execution time per iteration [s]
-        T_eff    = A_eff/wtime_it                       # Effective memory throughput [GB/s]
-        @printf("it = %d, time = %1.3e sec (@ T_eff = %1.2f GB/s) \n", it, wtime, round(T_eff, sigdigits=2))
-
 
         # Visualisation
         if DO_VIZ
@@ -210,7 +189,7 @@ end
     end
 
     # Testing
-    ## store data in case further testings needed
+    # store data in case further testings needed
     if SAVE_TEST
         save("../../test/2D/com_Peff.jld", "data", Array(Pt-Pf)')  # store case for reference testing
     end

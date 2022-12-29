@@ -4,7 +4,7 @@
 # ii). with inertia   => naiver stokes
 
 
-#=================== EXPLICIT EULER ======================#
+#=================== RESIDUAL UPDATE ======================#
 
 # i).without inertia
 
@@ -22,10 +22,6 @@
 end
 
 # ii).with inertia
-
-
-#=================== IMPLICIT EULER ======================#
-
 
 
 

@@ -1,7 +1,5 @@
 # Stiffness of PDEs
 
-
-
 ## Approaches
 
 

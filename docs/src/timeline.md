@@ -14,4 +14,5 @@ This is a small timeline of the project development
 | Dec. 13    | Julia course project week 3    | Compressibility for the mass conservation equation seems visually correct. Next step is to use implicit time stepping scheme and use the newest damping terms such that the augmented system is accelerated as in the damped wave equation case |
 | Dec. 16    | Meeting     | Same content as in the course of this week, next step after the course would be to add the inertia term in the momentum equation, which recovers the NS equation  |
 | Dec. 17    | Update     | Huge changes to the repository structure, now the fundamental conservation laws are included under `src/equations`, current aim is both the theory study and some setup for further benchmarks  |
-| Dec. 22    | project report deadline for the [course 101-0250-00L](https://pde-on-gpu.vaw.ethz.ch/final_proj/)   |  |
+| Dec. 18 - 28    | Liteature study for the PT method (MOL approach, general study for the iterative methods, timestepping schemes)   | working on a final report for the course project |
+| Dec. 29    | project report deadline for the [course 101-0250-00L](https://pde-on-gpu.vaw.ethz.ch/final_proj/)   |  |

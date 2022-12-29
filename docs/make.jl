@@ -24,11 +24,11 @@ makedocs(
                     [
                         "Pseudo Transient Method" => "pseudo-transient-method.md",
                         "Iteration Parameters" => "iteration-parameters.md",
-                        "Stiffness of PDEs" => "stiffness-of-pdes.md",
-                        "Eigenvalue Problem" => "eigenvalue-problem.md",
-                        "Dispersion Analysis" => "dispersion-analysis.md",
-                        "Von Neumann Stability Analysis" => "von-neumann-stability-analysis.md",
                         "Computational Earthquake Physics" => "computational-earthquake-physics.md"
+                        # "Stiffness of PDEs" => "stiffness-of-pdes.md",
+                        # "Eigenvalue Problem" => "eigenvalue-problem.md",
+                        # "Dispersion Analysis" => "dispersion-analysis.md",
+                        # "Von Neumann Stability Analysis" => "von-neumann-stability-analysis.md",
                     ],
 
                 "Performance" => "performance.md",
@@ -44,6 +44,7 @@ makedocs(
                 "Reference" => 
                     [
                         "HydroMech.jl" => "hydromech.md",
+                        
                         "PTsolvers/JustRelax.jl" => 
                                             [ "Overview"    =>  "justrelax-overview.md",
                                               "Source code" => [
@@ -53,6 +54,7 @@ makedocs(
                                               "Miniapps"    => "justrelax-Miniapps.md",
                                               "Testing"     => "justrelax-Testing.md"
                                             ],
+
                         "ParallelStencil" => "parallelstencil.md",
                         "JuliaGeodynamics" => "juliageodynamics.md"
                     ],
