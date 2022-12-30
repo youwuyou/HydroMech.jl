@@ -13,7 +13,7 @@ makedocs(
                 "Getting started" => 
                     [
                             "Overview" => "overview.md",
-                            "Methodology" => "methodology.md",
+                            # "Methodology" => "methodology.md",
                             "Tutorial" => "tutorial.md"
                     ],
                 "Solvers" =>

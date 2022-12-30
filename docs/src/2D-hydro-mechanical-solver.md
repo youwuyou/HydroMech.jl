@@ -3,34 +3,7 @@
 The solvers in our package aims to solve the two-phase flow equations.
 
 
-
-## Intro: Stokes flow
-
-
-
-### a). Stokes equation
-
-- the following Stokes equation describes the creeping flow of a viscous fluid
-
-*General form:*
-
-$$\vec{\nabla} \cdot \underline{\underline{\sigma}} - \vec{\nabla} P = \vec{f}_\text{ext}$$
-
-
-*Simplified form:*
-
-Under the assumption that viscosity is isotropic and the fluid is incompressible
-
-$$\eta \vec{\nabla}^2 \vec{v} - \vec{\nabla} P = \vec{f}_\text{ext}$$
-
-
-### b). Continuity equation
-
-$$\frac{\partial \rho}{\partial t} + \vec{\nabla} \cdot (\rho \vec{v}) = 0$$
-
----
-
-## Hydro-mechanical 2-phase flow
+## Two-phase flow (TPF) solver 
 
 Comparing to the Stokes flow, equations for three more unknowns are to be solved which are related to the Darcy flux. Here we assume the constant porosity of the solid.
 

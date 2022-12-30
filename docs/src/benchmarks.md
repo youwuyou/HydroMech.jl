@@ -7,15 +7,12 @@ Followingly are some selected benchmark runs performed using the hydro-mechanica
 Using the decompaction weakening approach as in [Raess et al.](https://academic.oup.com/gji/article/218/3/1591/5497299?login=true). We set up the benchmark for the porosity wave regime as limit of two-phase flow. The goal of this benchmark is to verify the reproducibility of the methodology as described [here](methodology.md)
 
 
-[  ] DI versus PT (2D)
-
-[  ] numerical vs. exact analytical solutions of solitary waves (1D)
-
-[  ] convergence study with varying spatial and temporal resolutions (2D)
-
-
 
 ### Results
+
+
+
+### Simple Run
 
 #### Incompressible
 
@@ -60,6 +57,37 @@ Ks = 50G*Pa           # bulk modulus
 ```
 
 
+
+### Sensitivity Analysis
+
+We keep all the parameters identical as in Räss et al. 2019 and perform 5 experiments with increasing grid resolution
+
+
+
+``
+
+
+
+``
+
+
+- Experiment 3: `nx = 512`, `ny=1024`
+
+
+```julia
+# final output
+it = 2055, time = 2.922e+00 sec (@ T_eff = 110.00 GB/s) 
+it = 2056, time = 2.919e+00 sec (@ T_eff = 110.00 GB/s) 
+it = 2057, time = 2.917e+00 sec (@ T_eff = 110.00 GB/s) 
+it = 2058, time = 2.898e+00 sec (@ T_eff = 120.00 GB/s) 
+it = 2059, time = 2.914e+00 sec (@ T_eff = 110.00 GB/s) 
+it = 2060, time = 2.915e+00 sec (@ T_eff = 110.00 GB/s) 
+it = 2061, time = 2.915e+00 sec (@ T_eff = 110.00 GB/s) 
+it = 2062, time = 2.919e+00 sec (@ T_eff = 110.00 GB/s) 
+it = 2063, time = 2.919e+00 sec (@ T_eff = 110.00 GB/s) 
+it = 2064, time = 2.918e+00 sec (@ T_eff = 110.00 GB/s) 
+it = 2065, time = 2.896e+00 sec (@ T_eff = 120.00 GB/s) 
+```
 
 
 
