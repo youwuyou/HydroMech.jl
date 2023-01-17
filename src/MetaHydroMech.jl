@@ -1,8 +1,8 @@
 struct PS_Setup{B,C}
     device::Symbol
 
-    function PS_Setup(device::Symbol, precission::DataType, nDim::Integer)
-        return new{precission,nDim}(device)
+    function PS_Setup(device::Symbol, precision::DataType, nDim::Integer)
+        return new{precision,nDim}(device)
     end
 end
 
@@ -30,19 +30,45 @@ function environment!(model::PS_Setup{T,N}) where {T,N}
         end
     end
 
+
+    # TODO: add the creation for array structs!
+    make_vector_struct!(N)             # PTVector
+    make_symmetrictensor_struct!(N)    # PTSymmetricTensor
+
+    make_twophase_residual_struct!(N)  # Residuals for twophase flow equations
+    make_twophase_struct!()            # TwoPhaseFlowEquations2D
+    make_pt_struct!()
+
+    
     # includes and exports
     @eval begin
         export USE_GPU, PTArray
 
+        #====== MetaJustRelax.jl =======#
+        export PTVector, PTSymmetricTensor
+        export TwoPhaseResidual, TwoPhaseFlow2D
+        export PTCoeff
+        
+        Adapt.@adapt_structure PTVector
+        Adapt.@adapt_structure PTSymmetricTensor
+        Adapt.@adapt_structure TwoPhaseFlow2D
+        Adapt.@adapt_structure TwoPhaseResidual
+        Adapt.@adapt_structure PTCoeff
+
+        #===Type dispatch for PTCoeff===#
+        export OriginalDamping
+
+
+
         #==============  BOUNDARY CONDITION ================#
-        include(joinpath(@__DIR__, "boundaryconditions/BoundaryConditions.jl"))
+        include(joinpath(@__DIR__, "boundary_conditions/BoundaryConditions.jl"))
         export free_slip_x!, free_slip_y!, apply_free_slip!
 
-        #==============  CONSERVATION LAWS ================#
-        include(joinpath(@__DIR__, "equations/MassConservation.jl"))
+        #==============  DISCRETE EVOLUTION OPERATORS FOR CONSERVATION LAWS ================#
+        include(joinpath(@__DIR__, "evolution_operators/MassConservation.jl"))
         export compute_residual_mass_law!, compute_pressure!, compute_tensor!, compute_porosity!
 
-        include(joinpath(@__DIR__, "equations/MomentumConservation.jl"))
+        include(joinpath(@__DIR__, "evolution_operators/MomentumConservation.jl"))
         export compute_residual_momentum_law!, compute_velocity!
 
         #=================== SOLVERS ======================#

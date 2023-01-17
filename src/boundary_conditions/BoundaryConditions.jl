@@ -20,7 +20,7 @@ end
 end
 
 
-@inline @inbounds function apply_free_slip!(freeslip::NamedTuple{<:Any,NTuple{2,T}}, Vx, Vy, size_Vx_x, size_Vy_y) where {T}
+@inline @inbounds function apply_free_slip!(freeslip::NamedTuple{<:Any,NTuple{2,T}}, Vx::Data.Array, Vy::Data.Array, size_Vx_x, size_Vy_y) where {T}
     freeslip_x, freeslip_y = freeslip
 
     # free slip boundary conditions
@@ -31,7 +31,7 @@ end
 end
 
 
-@inline @inbounds function apply_free_slip!(freeslip::NamedTuple{<:Any,NTuple{2,T}}, C, size_C_x, size_C_y) where {T}
+@inline @inbounds function apply_free_slip!(freeslip::NamedTuple{<:Any,NTuple{2,T}}, C::Data.Array, size_C_x, size_C_y) where {T}
     freeslip_x, freeslip_y = freeslip
 
     # free slip boundary conditions

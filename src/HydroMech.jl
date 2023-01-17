@@ -6,8 +6,6 @@ A collection of hydro-mechanical solvers for incompressible and compressible 2-p
 module HydroMech
 
 # define constant for redirection of the files
-# const DO_VIZ    = true
-# const SAVE_TEST = false
 global DO_VIZ    = true::Bool
 global SAVE_TEST = false::Bool
 
@@ -21,6 +19,7 @@ using LinearAlgebra
 using Printf
 using CUDA
 using MPI
+using Adapt
 
 # using an intermediate script to include methods dependent on ParallelStencil.jl
 include("MetaHydroMech.jl")
@@ -31,5 +30,11 @@ export PS_Setup, environment!, ps_reset!
 include("API.jl")
 export CompressibleTPF, IncompressibleTPF
 
+# export new-defined types used in HydroMech
+include("types/Basic.jl")
+include("types/Rheology.jl")
+include("types/TwoPhaseFlow.jl")
+
+export PTGrid, ViscousRheology
 
 end # module HydroMech

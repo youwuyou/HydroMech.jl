@@ -20,108 +20,90 @@ end
 
 ##################################################
 @views function PorosityWave2D_incompressible(;t_tot_)
-    # Physics - scales
-    ρfg      = 1.0             # fluid rho*g
-    k_μf0    = 1.0             # reference permeability
-    ηC0      = 1.0             # reference bulk viscosity
-  
-    # Physics - non-dimensional parameters
-    η2μs     = 10.0            # bulk/shear viscosity ration
-    R        = 500.0           # Compaction/decompaction strength ratio for bulk rheology
-    nperm    = 3.0             # Carman-Kozeny exponent
-    ϕ0       = 0.01            # reference porosity
-    ra       = 2               # radius of initil porosity perturbation
-    λ0       = 1.0             # standard deviation of initial porosity perturbation
-    t_tot    = t_tot_          # total time
-  
-    # Physics - dependent scales
-    ρsg      = 2.0*ρfg         # solid rho*g
+
+
+    # MESH
+    ra       = 2               # radius of initial porosity perturbation
     lx       = 20.0            # domain size x
     ly       = ra*lx           # domain size y
-    ϕA       = 2*ϕ0            # amplitude of initial porosity perturbation
-    λPe      = 0.01            # effective pressure transition zone
-    dt       = 1e-5            # physical time-step
-  
-    # Numerics
-    CN       = 0.5             # Crank-Nicolson CN=0.5, Backward Euler CN=0.0
     res      = 128
     nx, ny   = res-1, ra*res-1 # numerical grid resolutions; should be a mulitple of 32-1 for optimal GPU perf
-    ε        = 1e-5            # non-linear tolerance
-    iterMax  = 5e3             # max nonlinear iterations
-    nout     = 200             # error checking frequency
-    β_n      = 1.0             # numerical compressibility
-    Vdmp     = 5.0             # velocity damping for momentum equations
-    Pfdmp    = 0.8             # fluid pressure damping for momentum equations
+    dx, dy   = lx/(nx-1), ly/(ny-1)              # grid step in x, y
+    
+    mesh = PTGrid((nx,ny), (lx,ly), (dx,dy))
+
+
+    # RHEOLOGY
+    # i). viscous rheology
+
+    # ii).Porosity dependent viscosity
+    # η_ϕ = η_c ⋅ ɸ0/ɸ (1+ 1/2(1/R − 1)(1+tanh(−Pₑ/λₚ)))
+    # ηc = μs/C/φ0
+    
+    # iii). power law permeability
+    # k_ɸ = k0 (ɸ/ɸ0)^nₖ
+    R        = 500.0           # Compaction/decompaction strength ratio for bulk rheology
+    nₖ       = 3.0             # Carman-Kozeny exponent    
+    ɸ0       = 0.01            # reference porosity
+    ɸA       = 2*ɸ0            # amplitude of initial porosity perturbation
+    C        = 0.1             # bulk/shear viscosity ratio
+    ηC0      = 1.0             # reference bulk viscosity
+    μˢ       = ηC0*ɸ0*C        # solid shear viscosity
+    µᶠ       = 1.0
+    θ_e      = 9e-1            # relaxation factor for non-linear viscosity
+    θ_k      = 1e-1            # relaxation factor for non-linear permeability
+    λp       = 0.01            # effective pressure transition zone
+    k0       = 1.0                            # reference permeability
+    
+    rheology = ViscousRheology(μˢ,µᶠ,C,R,λp,k0,ɸ0,nₖ,θ_e,θ_k)
+
+
+    # TWO PHASE FLOW
+    # forces
+    ρfg      = 1.0             # fluid rho*g
+    ρsg      = 2.0*ρfg         # solid rho*g
+    ρgBG     = ρfg*ɸ0 + ρsg*(1.0-ɸ0)             # Background density
+    
+    # Initial conditions
+    λ0                = 1.0                            # standard deviation of initial porosity perturbation
+    λ                 = λ0*sqrt(k0*ηC0)                # initial perturbation wiΔth
+    Radc              = zeros(nx  ,ny  )
+    Radc             .= [(((ix-1)*dx-0.5*lx)/λ/4.0)^2 + (((iy-1)*dy-0.25*ly)/λ)^2 for ix=1:size(Radc,1), iy=1:size(Radc,2)]
+    𝝫                 = ɸ0*ones(nx  ,ny  )
+    𝝫[Radc.<1.0]     .= 𝝫[Radc.<1.0] .+ ɸA
+    
+    𝞅0bc              =   mean.(𝝫[:,end])
+    qDy               =   zeros(nx  ,ny+1)
+    qDy[:,[1,end]]   .=  (ρsg.-ρfg).*(1.0.-𝞅0bc).*k0.*(𝞅0bc./ɸ0).^nₖ
+    
+    𝞰ɸ                =   μˢ./C./𝝫
+    𝗞ɸ_µᶠ             =   k0.*(𝝫./ɸ0)
+    
+    flow             = TwoPhaseFlow2D(mesh, (ρfg, ρsg, ρgBG))
+    flow.qD.y        = PTArray(qDy)
+    flow.𝝫           = PTArray(𝝫)
+    flow.𝞰ɸ          = PTArray(𝞰ɸ)
+    flow.𝗞ɸ_µᶠ       = PTArray(𝗞ɸ_µᶠ)
+    
+
+    # PT COEFFICIENT
+    βₚₜ      = 1.0             # numerical compressibility
     Vsc      = 2.0             # reduction of PT steps for velocity
     Ptsc     = 2.0             # reduction of PT steps for total pressure
     Pfsc     = 4.0             # reduction of PT steps for fluid pressure
-    θ_e      = 9e-1            # relaxation factor for non-linear viscosity
-    θ_k      = 1e-1            # relaxation factor for non-linear permeability
-    dt_red   = 1e-3            # reduction of physical timestep
-  
-    # Derived physics
-    μs       = ηC0*ϕ0/η2μs                       # solid shear viscosity
-    λ        = λ0*sqrt(k_μf0*ηC0)                # initial perturbation width
-    ρgBG     = ρfg*ϕ0 + ρsg*(1.0-ϕ0)             # Background density
-  
-    # Derived numerics
-    dx, dy   = lx/(nx-1), ly/(ny-1)              # grid step in x, y
-    min_dxy2 = min(dx,dy)^2
-    dτV      = min_dxy2/μs/(1.0+β_n)/4.1/Vsc     # PT time step for velocity
-    dτPt     = 4.1*μs*(1.0+β_n)/max(nx,ny)/Ptsc
+    Vdmp     = 5.0             # velocity damping for momentum equations
+    Pfdmp    = 0.8             # fluid pressure damping for momentum equations
     dampX    = 1.0-Vdmp/nx
     dampY    = 1.0-Vdmp/ny
 
-    
-    # Array allocations
-    Phi_o    = @zeros(nx  ,ny  )
-    Pt       = @zeros(nx  ,ny  )
-    Pf       = @zeros(nx  ,ny  )
-    Rhog     = @zeros(nx  ,ny  )
-    ∇V       = @zeros(nx  ,ny  )
-    ∇V_o     = @zeros(nx  ,ny  )
-    ∇qD      = @zeros(nx  ,ny  )
-    dτPf     = @zeros(nx  ,ny  )
-    RPt      = @zeros(nx  ,ny  )
-    RPf      = @zeros(nx  ,ny  )
-    τxx      = @zeros(nx  ,ny  )
-    τyy      = @zeros(nx  ,ny  )
-    σxy      = @zeros(nx-1,ny-1)
-    dVxdτ    = @zeros(nx-1,ny-2)
-    dVydτ    = @zeros(nx-2,ny-1)
-    Rx       = @zeros(nx-1,ny-2)
-    Ry       = @zeros(nx-2,ny-1)
-    Vx       = @zeros(nx+1,ny  )
-    Vy       = @zeros(nx  ,ny+1)
-    qDx      = @zeros(nx+1,ny  )
+    # μˢ and Vsc are used to construct dτPt
+    pt = PTCoeff(OriginalDamping,mesh,μˢ,Vsc,βₚₜ,dampX,dampY,Pfdmp,Pfsc,Ptsc)
 
 
-    # Initial conditions
-    qDy_cpu             =   zeros(nx  ,ny+1)
-    Phi_cpu             = ϕ0*ones(nx  ,ny  )
-    Radc                =   zeros(nx  ,ny  )
-    Radc               .= [(((ix-1)*dx-0.5*lx)/λ/4.0)^2 + (((iy-1)*dy-0.25*ly)/λ)^2 for ix=1:size(Radc,1), iy=1:size(Radc,2)]
-    Phi_cpu[Radc.<1.0] .= Phi_cpu[Radc.<1.0] .+ ϕA
-    EtaC_cpu            = μs./Phi_cpu.*η2μs
-    K_muf_cpu           = k_μf0.*(Phi_cpu./ϕ0)
-    ϕ0bc                = mean.(Phi_cpu[:,end])
-    qDy_cpu[:,[1,end]] .= (ρsg.-ρfg).*(1.0.-ϕ0bc).*k_μf0.*(ϕ0bc./ϕ0).^nperm
-    Phi                 = PTArray(Phi_cpu)
-    EtaC                = PTArray(EtaC_cpu)
-    K_muf               = PTArray(K_muf_cpu)
-    qDy                 = PTArray(qDy_cpu)
-    t                   = 0.0
-    it                  = 1
-
-    # boundary condition
+    # BOUNDARY CONDITIONS
     freeslip = (freeslip_x=true, freeslip_y=true)
-
-    # HPC precomputation
-    _dx, _dy    = 1.0/dx, 1.0/dy
-    _ϕ0         = 1.0/ϕ0
-    length_Ry   = length(Ry)
-    length_RPf  = length(RPf)
- 
+    
+    
     # Preparation of visualisation
     if DO_VIZ
         ENV["GKSwstype"]="nul"; if isdir("viz2D_out")==false mkdir("viz2D_out") end; loadpath = "./viz2D_out/"; anim = Animation(loadpath,String[])
@@ -131,33 +113,33 @@ end
     
   
     # Time loop
+    t_tot    = t_tot_          # total time
+    Δt       = 1e-5            # physical time-step    
+    Δt_red   = 1e-3            # reduction of physical timestep
+    t        = 0.0
+    it       = 1
+    
     while t<t_tot
 
         # Pseudo-time loop solving
-        solve!(EtaC, K_muf, Rhog, ∇V, ∇qD, Phi, Pf, Pt, Vx, Vy, qDx, qDy, μs, η2μs, R, λPe, k_μf0, _ϕ0, nperm, θ_e, θ_k, ρfg, ρsg, ρgBG, _dx, _dy,
-                  dτPf, RPt, RPf, Pfsc, Pfdmp, min_dxy2,
-                  freeslip, nx, ny, τxx, τyy, σxy,dτPt, β_n,
-                  Rx, Ry, dVxdτ, dVydτ, dampX, dampY,
-                  Phi_o, ∇V_o, dτV, CN, dt,
-                  ε, iterMax, nout, length_Ry, length_RPf, it
-              )
-
+        solve!(flow,rheology,mesh,freeslip,pt,Δt,it)
 
         # Visualisation
         if DO_VIZ
             default(size=(500,700))
             if mod(it,5)==0
-                p1 = heatmap(X, Y,  Array(Phi)'  , aspect_ratio=1, xlims=(X[1],X[end]), ylims=(Y[1],Y[end]), c=:viridis, title="porosity")
-                p2 = heatmap(X, Y,  Array(Pt-Pf)', aspect_ratio=1, xlims=(X[1],X[end]), ylims=(Y[1],Y[end]), c=:viridis, title="effective pressure")
-                p3 = heatmap(X, Yv, Array(qDy)'  , aspect_ratio=1, xlims=(X[1],X[end]), ylims=(Yv[1],Yv[end]), c=:viridis, title="vertical Darcy flux")
-                p4 = heatmap(X, Yv, Array(Vy)'   , aspect_ratio=1, xlims=(X[1],X[end]), ylims=(Yv[1],Yv[end]), c=:viridis, title="vertical velocity")
+                p1 = heatmap(X, Y,  Array(flow.𝝫)'  , aspect_ratio=1, xlims=(X[1],X[end]), ylims=(Y[1],Y[end]), c=:viridis, title="porosity")
+                p2 = heatmap(X, Y,  Array(flow.Pt - flow.Pf)', aspect_ratio=1, xlims=(X[1],X[end]), ylims=(Y[1],Y[end]), c=:viridis, title="effective pressure")
+                p3 = heatmap(X, Yv, Array(flow.qD.y)'  , aspect_ratio=1, xlims=(X[1],X[end]), ylims=(Yv[1],Yv[end]), c=:viridis, title="vertical Darcy flux")
+                p4 = heatmap(X, Yv, Array(flow.V.y)'   , aspect_ratio=1, xlims=(X[1],X[end]), ylims=(Yv[1],Yv[end]), c=:viridis, title="vertical velocity")
+
                 display(plot(p1, p2, p3, p4)); frame(anim)
             end
         end
 
         # Time
-        dt = dt_red/(1e-10+maximum(abs.(∇V)))
-        t  = t + dt
+        Δt = Δt_red/(1e-10+maximum(abs.(flow.∇V)))
+        t  = t + Δt
         it+=1
     end
     
@@ -169,11 +151,11 @@ end
     # Testing
     ## store data in case further testings needed
     if SAVE_TEST
-        save("../../test/2D/incom_Peff.jld", "data", Array(Pt-Pf)')  # store case for reference testing
+        save("../../test/2D/incom_Peff.jld", "data", Array(flow.Pt - flow.Pf)')  # store case for reference testing
     end
 
     # return effective pressure at final time
-    return Array(Pt-Pf)'
+    return Array(flow.Pt - flow.Pf)'
 end
 
 
@@ -182,3 +164,7 @@ if isinteractive()
     # PorosityWave2D_incompressible(;t_tot_=0.1) # for reproducing porosity wave benchmark
     # PorosityWave2D_incompressible(;t_tot_=0.0005) # for reproducing the test result
 end
+
+
+
+
