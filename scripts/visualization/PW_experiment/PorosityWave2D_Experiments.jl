@@ -31,7 +31,7 @@ end
     ηC0      = 1.0             # reference bulk viscosity
   
     # Physics - non-dimensional parameters
-    η2μs     = 10.0            # bulk/shear viscosity ration
+    η2μs     = 10.0            # bulk/shear viscosity ratio
     R        = 500.0           # Compaction/decompaction strength ratio for bulk rheology
     nperm    = 3.0             # Carman-Kozeny exponent
     ϕ0       = 0.01            # reference porosity
@@ -237,5 +237,5 @@ end
 # PorosityWave2D_incompressible(;t_tot_=0.02, res_= 64) # for reproducing porosity wave benchmark
 # PorosityWave2D_incompressible(;t_tot_=0.02, res_= 128) # for reproducing porosity wave benchmark
 # PorosityWave2D_incompressible(;t_tot_=0.02, res_= 512) # for reproducing porosity wave benchmark
-PorosityWave2D_incompressible(;t_tot_=0.02, res_= 1024) # for reproducing porosity wave benchmark
+# PorosityWave2D_incompressible(;t_tot_=0.02, res_= 1024) # for reproducing porosity wave benchmark
 # PorosityWave2D_incompressible(;t_tot_=0.02, res_= 2048) # for reproducing porosity wave benchmark

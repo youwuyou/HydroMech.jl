@@ -1,3 +1,71 @@
+## Performance comparison for mutable & immutable struct for TwoPhaseFlowEquations
+
+Since there is no significant difference between the usage of mutable/immutable class, after the application of Adapt.@adapt_structure. We use the mutable one for its flexibility.
+
+```bash
+# using immutable struct
+Time stepping: t_tot = 0.0005, dt = 1e-5
+┌ Warning: `object_info(obj::Union{File, Object})` is deprecated, use `API.h5o_get_info1(checkvalid(obj))` instead.
+│   caller = jldatatype(parent::JLD.JldFile, dtype::HDF5.Datatype) at jld_types.jl:690
+└ @ JLD ~/.julia/packages/JLD/S6t6A/src/jld_types.jl:690
+┌ Warning: `object_info(obj::Union{File, Object})` is deprecated, use `API.h5o_get_info1(checkvalid(obj))` instead.
+│   caller = typeindex(parent::JLD.JldFile, addr::UInt64) at jld_types.jl:812
+└ @ JLD ~/.julia/packages/JLD/S6t6A/src/jld_types.jl:812
+Animation directory: ./viz2D_out/
+it = 1, time = 6.394e+00 sec (@ T_eff = 2.30 GB/s) 
+it = 2, time = 2.201e-01 sec (@ T_eff = 11.00 GB/s) 
+it = 3, time = 3.723e-01 sec (@ T_eff = 11.00 GB/s) 
+it = 4, time = 3.689e-01 sec (@ T_eff = 8.90 GB/s) 
+it = 5, time = 2.962e-01 sec (@ T_eff = 11.00 GB/s) 
+it = 6, time = 3.768e-01 sec (@ T_eff = 11.00 GB/s) 
+it = 7, time = 3.169e-01 sec (@ T_eff = 10.00 GB/s) 
+it = 8, time = 3.818e-01 sec (@ T_eff = 11.00 GB/s) 
+it = 9, time = 3.818e-01 sec (@ T_eff = 11.00 GB/s) 
+it = 10, time = 3.811e-01 sec (@ T_eff = 11.00 GB/s) 
+it = 11, time = 3.791e-01 sec (@ T_eff = 11.00 GB/s) 
+it = 12, time = 3.820e-01 sec (@ T_eff = 11.00 GB/s) 
+it = 13, time = 3.815e-01 sec (@ T_eff = 11.00 GB/s) 
+it = 14, time = 3.698e-01 sec (@ T_eff = 11.00 GB/s) 
+it = 15, time = 4.921e-01 sec (@ T_eff = 8.30 GB/s) 
+[ Info: Saved animation to /home/wyou/misc/git-julia/HydroMech.jl/test/PorosityWave2D_incompressible.gif
+Test Summary:                                 | Pass  Total
+Reference test: PorosityWave2D_incompressible |    5      5
+     Testing HydroMech tests passed 
+```
+
+
+```bash
+# using mutable struct
+Time stepping: t_tot = 0.0005, dt = 1e-5
+┌ Warning: `object_info(obj::Union{File, Object})` is deprecated, use `API.h5o_get_info1(checkvalid(obj))` instead.
+│   caller = jldatatype(parent::JLD.JldFile, dtype::HDF5.Datatype) at jld_types.jl:690
+└ @ JLD ~/.julia/packages/JLD/S6t6A/src/jld_types.jl:690
+┌ Warning: `object_info(obj::Union{File, Object})` is deprecated, use `API.h5o_get_info1(checkvalid(obj))` instead.
+│   caller = typeindex(parent::JLD.JldFile, addr::UInt64) at jld_types.jl:812
+└ @ JLD ~/.julia/packages/JLD/S6t6A/src/jld_types.jl:812
+Animation directory: ./viz2D_out/
+it = 1, time = 6.499e+00 sec (@ T_eff = 2.30 GB/s) 
+it = 2, time = 2.220e-01 sec (@ T_eff = 11.00 GB/s) 
+it = 3, time = 4.500e-01 sec (@ T_eff = 9.10 GB/s) 
+it = 4, time = 2.955e-01 sec (@ T_eff = 11.00 GB/s) 
+it = 5, time = 3.288e-01 sec (@ T_eff = 10.00 GB/s) 
+it = 6, time = 3.869e-01 sec (@ T_eff = 11.00 GB/s) 
+it = 7, time = 2.929e-01 sec (@ T_eff = 11.00 GB/s) 
+it = 8, time = 3.841e-01 sec (@ T_eff = 11.00 GB/s) 
+it = 9, time = 3.793e-01 sec (@ T_eff = 11.00 GB/s) 
+it = 10, time = 3.788e-01 sec (@ T_eff = 11.00 GB/s) 
+it = 11, time = 3.786e-01 sec (@ T_eff = 11.00 GB/s) 
+it = 12, time = 3.795e-01 sec (@ T_eff = 11.00 GB/s) 
+it = 13, time = 3.806e-01 sec (@ T_eff = 11.00 GB/s) 
+it = 14, time = 3.796e-01 sec (@ T_eff = 11.00 GB/s) 
+it = 15, time = 3.676e-01 sec (@ T_eff = 11.00 GB/s) 
+[ Info: Saved animation to /home/wyou/misc/git-julia/HydroMech.jl/test/PorosityWave2D_incompressible.gif
+Test Summary:                                 | Pass  Total
+Reference test: PorosityWave2D_incompressible |    5      5
+     Testing HydroMech tests passed 
+```
+
+
 ## Benchmarking for GPUs communication
 
 - Goal: find out the best algorithm out of the `tuned` module

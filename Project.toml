@@ -4,6 +4,7 @@ authors = ["youwuyou <youwuyou@student.ethz.ch>"]
 version = "0.1.0"
 
 [deps]
+Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 BSON = "fbb218c0-5317-5bc6-957e-2ee96dd4b1f0"
 BasicLU = "f55c55da-c227-4c78-8e30-b72a48476979"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
