@@ -1,3 +1,8 @@
+""" MetaHydroMech.jl
+necessary precompilation for the use of the ParallelStencil.jl routines.
+"""
+
+
 struct PS_Setup{B,C}
     device::Symbol
 
@@ -31,12 +36,13 @@ function environment!(model::PS_Setup{T,N}) where {T,N}
     end
 
 
-    # TODO: add the creation for array structs!
+    # concretize the types after knowing the ParallelStencil environments
     make_vector_struct!(N)             # PTVector
     make_symmetrictensor_struct!(N)    # PTSymmetricTensor
 
     make_twophase_residual_struct!(N)  # Residuals for twophase flow equations
     make_twophase_struct!()            # TwoPhaseFlowEquations2D
+    make_compressibility_struct!()     # for compressibility
     make_pt_struct!()
 
     
@@ -46,18 +52,19 @@ function environment!(model::PS_Setup{T,N}) where {T,N}
 
         #====== MetaJustRelax.jl =======#
         export PTVector, PTSymmetricTensor
-        export TwoPhaseResidual, TwoPhaseFlow2D
+        export TwoPhaseResidual, TwoPhaseFlow2D, Compressibility
         export PTCoeff
         
+        # use Adapt to avoid unpacking of struct objects for gpu usage
         Adapt.@adapt_structure PTVector
         Adapt.@adapt_structure PTSymmetricTensor
         Adapt.@adapt_structure TwoPhaseFlow2D
         Adapt.@adapt_structure TwoPhaseResidual
+        Adapt.@adapt_structure Compressibility
         Adapt.@adapt_structure PTCoeff
 
         #===Type dispatch for PTCoeff===#
         export OriginalDamping
-
 
 
         #==============  BOUNDARY CONDITION ================#

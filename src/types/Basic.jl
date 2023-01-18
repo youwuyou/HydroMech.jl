@@ -19,11 +19,7 @@ Both types are based on the PTArray type which we defined in the MetaHydroMech.j
 which do not necessarily need to be used for only the PT method. We follow the same naming convention to avoid naming duplicance with other packages with the "PT" prefix here.
 """
 
-# abstract type AbstractTPFModel end
-# abstract type Viscous <: AbstractTPFModel end
 
-
-# FIXME: renamed from make_velocity_struct!
 function make_vector_struct!(ndim::Integer; name::Symbol=:PTVector)
     dims = (:x, :y, :z)
     fields = [:($(dims[i])::T) for i in 1:ndim]
@@ -40,9 +36,6 @@ function make_vector_struct!(ndim::Integer; name::Symbol=:PTVector)
         end
     end
 end
-
-
-
 
 
 function make_symmetrictensor_struct!(nDim::Integer; name::Symbol=:PTSymmetricTensor)
@@ -74,40 +67,21 @@ end
 
 #======= 2. Mesh Topology  =========#
 
+"""
+PTMesh{nDim}
+An abstract supertype of specific mesh types such as `PTGrid`
+The type parameters encode the number of spatial dimensions (`nDim`).
+"""
+abstract type PTMesh{nDim} end
+
 # Staggered grid
 
-# struct Geometry{nDim}
-#     ni::NTuple{nDim,Integer}
-#     li::NTuple{nDim,Float64}
-#     max_li::Float64
-#     di::NTuple{nDim,Float64}
-#     xci::NTuple{nDim,StepRangeLen}
-#     xvi::NTuple{nDim,StepRangeLen}
 
-#     function Geometry(ni::NTuple{nDim,Integer}, li::NTuple{nDim,T}) where {nDim,T}
-#         li isa NTuple{nDim,Float64} == false && (li = Float64.(li))
-#         di = li ./ ni
-#         return new{nDim}(
-#             ni,
-#             li,
-#             Float64(max(li...)),
-#             di,
-#             Tuple([(di[i] / 2):di[i]:(li[i] - di[i] / 2) for i in 1:nDim]),
-#             Tuple([0:di[i]:li[i] for i in 1:nDim]),
-#         )
-#     end
-# end
-
-# """
-#     AbstractMesh{NDIMS}
-# An abstract supertype of specific mesh types such as `TreeMesh` or `StructuredMesh`.
-# The type parameters encode the number of spatial dimensions (`NDIMS`).
-# """
-# abstract type AbstractMesh{NDIMS} end
-
-abstract type PTMesh{nDim} end
-# abstract type PTGrid{nDim} <: PTMesh{nDim} end   # a grid is a structured tensor mesh
-
+"""
+PTGrid{nDim}
+A concrete type as subtype of PTMesh abstract type.
+Encode minimal information on a well-defined tensor-structure grid.
+"""
 struct PTGrid{nDim} <: PTMesh{nDim}
     ni::NTuple{nDim, Integer}
     li::NTuple{nDim, Float64}

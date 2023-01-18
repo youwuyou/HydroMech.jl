@@ -31,6 +31,11 @@ end
 
 
 
+
+
+
+
+
 """
 AbstractFlow{NDIMS, NVARS}
 An abstract supertype of specific equations such as the compressible Euler equations.
@@ -134,6 +139,62 @@ function make_twophase_struct!()
 
 
 end
+
+
+
+# Compressibility
+function make_compressibility_struct!()
+    
+    @eval begin
+
+        mutable struct Compressibility{T}
+            Pt_o::PTArray
+            Pf_o::PTArray
+            𝗞d::PTArray
+            𝗞ɸ::PTArray
+            𝝰::PTArray
+            𝝱d::PTArray
+            𝗕::PTArray
+
+            µ::T 
+            Ks::T 
+            βs::T 
+            βf::T
+
+            function Compressibility(mesh::PTMesh, µ::T, Ks::T, βs::T, βf::T) where {T}
+                nx, ny   = mesh.ni  # this is used for later
+
+                Pt_o     = @zeros(nx, ny)
+                Pf_o     = @zeros(nx, ny)
+
+                𝗞d       = @zeros(nx, ny)
+                𝗞ɸ       = @zeros(nx, ny)
+                𝝰        = @zeros(nx, ny)
+                𝝱d       = @zeros(nx, ny)
+                𝗕        = @zeros(nx, ny)
+
+                return new{T}(    
+                Pt_o, 
+                Pf_o,
+                𝗞d, 
+                𝗞ɸ, 
+                𝝰, 
+                𝝱d, 
+                𝗕,
+                µ,
+                Ks, 
+                βs, 
+                βf 
+                )
+
+            end # end of constructor
+
+        end # end of struct
+
+    end # end of the eval
+
+end
+
 
 
 

@@ -40,9 +40,6 @@ environment!(model)
 
 - STEP 2: Define a function where we solve a desired problem by calling the solver
 
-Unfortunately the call of the PT solver via `solve!()` is still quite stupid yet, as it requires a lot of parameters to be passed and is yet unstructured. Further improvements are needed by the use of `GeoParams.jl` package, which can significantly enhance the readability of the code. This is still under construction!
-
-Similarly the precomputations of certain values are required in the preparation phase, we will possibly adjust this for sake of the convinience when using the solver routines.
 
 ```julia
 
@@ -51,19 +48,55 @@ Similarly the precomputations of certain values are required in the preparation 
    #==================== PROBLEM SETUP =======================#
    # this depends on the model problem one wants to solve, we recommend to distinguish between the physical and numerical properties
 
-   # Physics:  here we assign values to physical properties such as reference density ρ0, reference porosity ϕ0
-   # Numerics:  here we assign values to numerical properties such as nx,ny 
+   # MESH
+    nx, ny   = 255, 511
+    mesh     = PTGrid((nx,ny), (lx,ly),(dx,dy))
 
-   # Array allocation:
-   # the empty arrays shall be initialized using macros @zeros
-    Pt       = @zeros(nx  ,ny  )
-    Pf       = @zeros(nx  ,ny  )
+
+
+    # RHEOLOGY
+    # define concrete values for parameters such as μˢ needed in the wanted rheology
+    # types avaliable to be used can be seen under `src/types/Rheology.jl`
+    ɸ0 = 0.01  
+    #... and define some more variables needed
+
+    rheology = ViscousRheology(μˢ,µᶠ,C,R,λp,k0,ɸ0,nₖ,θ_e,θ_k)
+
+    # TWO PHASE FLOW
+    # define the forces
+    ρfg      = 1.0                     # fluid rho*g
+    ρsg      = 2.0*ρfg                 # solid rho*g
+    ρgBG     = ρfg*ɸ0 + ρsg*(1.0-ɸ0)   #Background density
     
+
    # Initial conditions:
-   # the arrays with initial values shall be firstly defined as normal julia arrays, and then wrapped by the PTArray
-   # PTArray is a compromise for the both CPU and GPU array usage in the ParallelStencil.jl package, more see MetaHydroMech.jl for details
-   Phi_cpu   = ϕ0*ones(nx  ,ny  )
-   Phi       = PTArray(Phi_cpu)
+   # the arrays with initial values shall be firstly defined as normal julia arrays
+    𝝫              = ɸ0*ones(nx  ,ny  )
+    𝞰ɸ              = μˢ./𝝫./C
+    𝗞ɸ_µᶠ           = k0.*(𝝫./ɸ0)
+   
+   # we need to then further change the values in the object "flow" of accordingly, where we need to wrap the CPU arrays to be capable to be used on both CPU and GPU using the PTArray wrapper
+   # PTArray is a compromise for the both CPU and GPU array usage in the ParallelStencil.jl package, more see MetaHydroMech.jl for details\
+
+    flow              = TwoPhaseFlow2D(mesh, (ρfg, ρsg, ρgBG))
+    flow.𝝫            = PTArray(𝝫)
+    flow.𝞰ɸ           = PTArray(𝞰ɸ)
+    flow.𝗞ɸ_µᶠ        = PTArray(𝗞ɸ_µᶠ)
+
+
+    # PHYSICS FOR COMPRESSIBILITY
+    µ   = 25.0
+    # ...
+
+    compressibility = Compressibility(mesh, µ, Ks, βs, βf)
+
+
+
+    # PT COEFFICIENT  
+    βₚₜ      = 1.0             # numerical compressibility
+    # ...
+    
+    pt = PTCoeff(OriginalDamping,mesh,μˢ,Vsc,βₚₜ,dampX,dampY,Pfdmp,Pfsc,Ptsc)
 
 
 
@@ -73,16 +106,6 @@ Similarly the precomputations of certain values are required in the preparation 
     freeslip = (freeslip_x=true, freeslip_y=true)
 
 
-    # HPC precomputation:
-    # these values are needed for the solver for efficiency since division is more computationally heavy than performing multiplication
-    # and we don't want to measure the norm of the initial values redundantly which is used in the error comparison
-    _dx, _dy    = 1.0/dx, 1.0/dy
-    _ϕ0         = 1.0/ϕ0
-    length_Ry   = length(Ry)
-    length_RPf  = length(RPf)
-
-
-  
    #==================== PHYSICAL TIMELOOP =======================#
    # define parameters needed to perform your physical time loop
     t_tot               = 0.02    # total time
@@ -92,13 +115,7 @@ Similarly the precomputations of certain values are required in the preparation 
     while t<t_tot
 
         # Pseudo-time loop solving
-        solve!(EtaC, K_muf, Rhog, ∇V, ∇qD, Phi, Pf, Pt, Vx, Vy, qDx, qDy, μs, η2μs, R, λPe, k_μf0, _ϕ0, nperm, θ_e, θ_k, ρfg, ρsg, ρgBG, _dx, _dy,
-                  dτPf, RPt, RPf, Pfsc, Pfdmp, min_dxy2,
-                  freeslip, nx, ny, τxx, τyy, σxy,dτPt, β_n,
-                  Rx, Ry, dVxdτ, dVydτ, dampX, dampY,
-                  Phi_o, ∇V_o, dτV, CN, dt,
-                  ε, iterMax, nout, length_Ry, length_RPf, it
-              )
+        solve!(flow, compressibility, rheology, mesh, freeslip, pt,Δt,it)
 
 
         # Optional
@@ -115,8 +132,8 @@ Similarly the precomputations of certain values are required in the preparation 
     # possible post-processing here such as the call of some plotting routines
 
 
-    # return desired values after the solving
-    return Array(Pt-Pf)'
+    # return desired values from the flow variable after the solving
+    return Array(flow.Pt - flow.Pf)'
 end
 
 ```
@@ -136,24 +153,22 @@ This concludes the main idea of the package usage. For a working example please 
 
 ## PT Solvers
 
-The core of the HydroMech.jl are the [solvers](https://github.com/youwuyou/HydroMech.jl/tree/main/src/solvers). We saw how one can call different `solve!()` routines by passing different parameters (again, parameters will be bundled in further development, yet it is still quite ugly unfortunately...). 
+The core of the HydroMech.jl are the [solvers](https://github.com/youwuyou/HydroMech.jl/tree/main/src/solvers). We saw how one can call different `solve!()` routines by passing different parameters, currently we can choose between the incompressible and compressible two-phase flow solvers using the following commands.
+
+```julia
+# an example call to the TPF incompressible solver
+solve!(flow, rheology, mesh, freeslip, pt, Δt, it)
+```
 
 
 ```julia
 # an example call to the TPF incompressible solver
-solve!(EtaC, K_muf, Rhog, ∇V, ∇qD, Phi, Pf, Pt, Vx, Vy, qDx, qDy, μs, η2μs, R, λPe, k_μf0, _ϕ0, nperm, θ_e, θ_k, ρfg, ρsg, ρgBG, _dx, _dy,
-    dτPf, RPt, RPf, Pfsc, Pfdmp, min_dxy2,
-    freeslip, nx, ny, τxx, τyy, σxy,dτPt, β_n,
-    Rx, Ry, dVxdτ, dVydτ, dampX, dampY,
-    Phi_o, ∇V_o, dτV, CN, dt,
-    Kd, Kphi, _Ks, µ, ɑ, βd, βs, βf, B, Pt_o, Pf_o,
-    ε, iterMax, nout, length_Ry, length_RPf, it
-    )
+solve!(flow, compressibility, rheology, mesh, freeslip, pt, Δt, it)
 ```
 
-The PT solvers essentially call different update routines for the residuals, physical properties (under `src/equations`) and as well as for the boundary updates (under `src/boundaryconditions`) in each pseudo-time loop. The selection of the routines to be called is based on the problem we aim to solve. 
+In the above examples, the variables such as `flow::TwoPhaseFlow2D`, `rheology::ViscousRheology` etc. are of types that are defined under the `src/types` scripts. The PT solvers essentially call different update routines for the residuals, physical properties (under `src/equations`) and as well as for the boundary updates (under `src/boundaryconditions`) in each pseudo-time loop. The selection of the routines to be called is based on the problem we aim to solve. 
 
-Let's take a peek at the `solve!()` routine of the TPF incompressible solver, we focus on the pseudo-time loop within the solver routine. Now one can see why some many parameters get passed to the solver: due to the massive amount of parameters needed in the original equations.
+Let's take a peek at the `solve!()` routine of the TPF incompressible solver, we focus on the pseudo-time loop within the solver routine. Now one can see the advantages why we added one more layer of the abstraction: due to the massive amount of parameters needed in the original equations. In the current `solve!()`, we need not to explicitly unpack the variables from the struct, we used the `Adapt.jl` package in order to allow the use of struct members on GPUs.
 
 ```julia
     while err > ε && iter <= iterMax
@@ -161,24 +176,25 @@ Let's take a peek at the `solve!()` routine of the TPF incompressible solver, we
         if (iter==11)  global wtime0 = Base.time()  end
 
         # involve the incompressible TPF solver
-        @parallel compute_params_∇!(EtaC, K_muf, Rhog, ∇V, ∇qD, Phi, Pf, Pt, Vx, Vy, qDx, qDy, μs, η2μs, R, λPe, k_μf0, _ϕ0, nperm, θ_e, θ_k, ρfg, ρsg, ρgBG, _dx, _dy)
+        @parallel compute_params_∇!(flow.𝞰ɸ, flow.𝗞ɸ_µᶠ, flow.𝞀g, flow.∇V, flow.∇qD, flow.𝝫, flow.Pf, flow.Pt, flow.V.x, flow.V.y, flow.qD.x, flow.qD.y, rheology.μˢ, _C, rheology.R, rheology.λp, rheology.k0, _ɸ0, rheology.nₖ, rheology.θ_e, rheology.θ_k, flow.ρfg, flow.ρsg, flow.ρgBG, _dx, _dy)
 
-        # pressure update from the conservation of mass equations
-        @parallel compute_residual_mass_law!(dτPt, dτPf, RPt, RPf, K_muf, ∇V, ∇qD, Pt, Pf, EtaC, Phi, Pfsc, Pfdmp, min_dxy2, _dx, _dy)
-        apply_free_slip!(freeslip, dτPf, nx, ny)
-        @parallel compute_pressure!(Pt, Pf, RPt, RPf, dτPf, dτPt)
-        @parallel compute_tensor!(τxx, τyy, σxy, Vx, Vy, ∇V, RPt, μs, β_n, _dx, _dy)
-        
+        # pressure update from the conservation of mass flow
+        @parallel compute_residual_mass_law!(pt.dτPt, pt.dτPf, flow.R.Pt, flow.R.Pf, flow.𝗞ɸ_µᶠ, flow.∇V, flow.∇qD, flow.Pt, flow.Pf, flow.𝞰ɸ, flow.𝝫, pt.Pfsc, pt.Pfdmp, min_dxy2, _dx, _dy)
+        apply_free_slip!(freeslip, pt.dτPf, nx, ny)
+        @parallel compute_pressure!(flow.Pt, flow.Pf, flow.R.Pt, flow.R.Pf, pt.dτPf, pt.dτPt)
+        @parallel compute_tensor!(flow.𝞃.xx, flow.𝞃.yy, flow.𝞃.xy, flow.V.x, flow.V.y,  flow.∇V, flow.R.Pt, rheology.μˢ, pt.βₚₜ, _dx, _dy)
+
     
-        # velocity update from the conservation of momentum equations
+        # velocity update from the conservation of momentum flow
         # for both fluid and solid
-        @parallel compute_residual_momentum_law!(Rx, Ry, dVxdτ, dVydτ, τxx, τyy, σxy, Pt, Rhog, dampX, dampY, _dx, _dy)
-        @parallel compute_velocity!(Vx, Vy, qDx, qDy, dVxdτ, dVydτ, K_muf, Pf, dτV, ρfg, ρgBG, _dx, _dy)
-        apply_free_slip!(freeslip, Vx, Vy, nx+1, ny+1)
-        apply_free_slip!(freeslip, qDx, qDy, nx+1, ny+1)
+        @parallel compute_residual_momentum_law!(flow.R.Vx, flow.R.Vy, pt.dVxdτ, pt.dVydτ, flow.𝞃.xx, flow.𝞃.yy, flow.𝞃.xy, flow.Pt, flow.𝞀g, pt.dampX, pt.dampY, _dx, _dy)
+        @parallel compute_velocity!(flow.V.x, flow.V.y, flow.qD.x, flow.qD.y, pt.dVxdτ, pt.dVydτ, flow.𝗞ɸ_µᶠ, flow.Pf, pt.dτV, flow.ρfg, flow.ρgBG, _dx, _dy)
+        apply_free_slip!(freeslip, flow.V.x, flow.V.y, nx+1, ny+1)
+        apply_free_slip!(freeslip, flow.qD.x, flow.qD.y, nx+1, ny+1)
     
         # update the porosity
-        @parallel compute_porosity!(Phi, Phi_o, ∇V, ∇V_o, CN, dt)
+        @parallel compute_porosity!(flow.𝝫, flow.𝝫_o, flow.∇V, flow.∇V_o, CN, Δt)
+
 
 
         # ... error updates
@@ -186,9 +202,9 @@ Let's take a peek at the `solve!()` routine of the TPF incompressible solver, we
 ```
 
 
-## Equations
+## Evolution Operators
 
-One can see a `solve!()` routine defined in `src/solvers` as wrapper for many some update kernels which are defined within separate scripts of `src/equations`. The idea underlying this design is due to the fact that the core of different problems consisting of PDEs still centers around very few fundamental conservation laws. We thus organize equations (kernel updates) into different scripts and named them as `MassConservation.jl`, `MomentumConservation.jl` and `EnergyConservation.jl` etc.
+One can see a `solve!()` routine defined in `src/solvers` as wrapper for many some update kernels which are defined within separate scripts of `src/evolution_operators`. The idea underlying this design is due to the fact that the core of different problems consisting of PDEs still centers around very few fundamental conservation laws. We thus organize each single-step update (kernel updates) into different scripts and named them as `MassConservation.jl`, `MomentumConservation.jl` and `EnergyConservation.jl` etc.
 
 You may have noticed the naming of certain kernel update routines as `compute_residual_mass_law!()` and `compute_residual_momentum_law!()`, these methods reflect exactly the governing equation one aims to solve. For more information about the governing equations for each associated solver please refer to the API of HydroMech.
 

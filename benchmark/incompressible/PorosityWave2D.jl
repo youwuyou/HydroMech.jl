@@ -79,11 +79,11 @@ end
     𝞰ɸ                =   μˢ./C./𝝫
     𝗞ɸ_µᶠ             =   k0.*(𝝫./ɸ0)
     
-    flow             = TwoPhaseFlow2D(mesh, (ρfg, ρsg, ρgBG))
-    flow.qD.y        = PTArray(qDy)
-    flow.𝝫           = PTArray(𝝫)
-    flow.𝞰ɸ          = PTArray(𝞰ɸ)
-    flow.𝗞ɸ_µᶠ       = PTArray(𝗞ɸ_µᶠ)
+    flow              = TwoPhaseFlow2D(mesh, (ρfg, ρsg, ρgBG))
+    flow.qD.y         = PTArray(qDy)
+    flow.𝝫            = PTArray(𝝫)
+    flow.𝞰ɸ           = PTArray(𝞰ɸ)
+    flow.𝗞ɸ_µᶠ        = PTArray(𝗞ɸ_µᶠ)
     
 
     # PT COEFFICIENT
@@ -99,7 +99,7 @@ end
     # μˢ and Vsc are used to construct dτPt
     pt = PTCoeff(OriginalDamping,mesh,μˢ,Vsc,βₚₜ,dampX,dampY,Pfdmp,Pfsc,Ptsc)
 
-
+    
     # BOUNDARY CONDITIONS
     freeslip = (freeslip_x=true, freeslip_y=true)
     
