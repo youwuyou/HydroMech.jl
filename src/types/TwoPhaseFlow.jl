@@ -60,11 +60,12 @@ function make_twophase_struct!()
             qD::PTVector
             
             # used for computing residual
-            𝞃::PTSymmetricTensor
+            𝞂ʼ::PTSymmetricTensor  # deviatoric stress tensor
+
 
             𝝫::PTArray
             𝞰ɸ::PTArray
-            𝗞ɸ_µᶠ::PTArray    # k^ϕ/μᶠ
+            𝐤ɸ_µᶠ::PTArray    # k^ϕ/μᶠ
 
             𝞀g::PTArray
         
@@ -93,11 +94,11 @@ function make_twophase_struct!()
                 V   = PTVector(((ni[1] + 1, ni[2]), (ni[1], ni[2] + 1)))
                 qD  = PTVector(((ni[1] + 1, ni[2]), (ni[1], ni[2] + 1)))
         
-                𝞃   = PTSymmetricTensor(((ni[1], ni[2]), (ni[1]-1, ni[2]-1), (ni[1], ni[2])))
+                𝞂ʼ   = PTSymmetricTensor(((ni[1], ni[2]), (ni[1]-1, ni[2]-1), (ni[1], ni[2])))
 
                 𝝫   = @zeros(ni...)
                 𝞰ɸ   = @zeros(ni...)
-                𝗞ɸ_µᶠ= @zeros(ni...)    # k^ϕ/μᶠ
+                𝐤ɸ_µᶠ= @zeros(ni...)    # k^ϕ/μᶠ
                 
                 𝞀g  = @zeros(ni...)
         
@@ -118,10 +119,10 @@ function make_twophase_struct!()
                     Pt,
                     V,
                     qD,
-                    𝞃,
+                    𝞂ʼ,
                     𝝫,
                     𝞰ɸ,
-                    𝗞ɸ_µᶠ,    # k^ϕ/μᶠ
+                    𝐤ɸ_µᶠ,    # k^ϕ/μᶠ
                     𝞀g,
                     ρfg, 
                     ρsg, 
@@ -156,12 +157,13 @@ function make_compressibility_struct!()
             𝝱d::PTArray
             𝗕::PTArray
 
-            µ::T 
+            µ::T     # shear modulus
+            ν::T     # Poisson ratio for Kd computation
             Ks::T 
             βs::T 
             βf::T
 
-            function Compressibility(mesh::PTMesh, µ::T, Ks::T, βs::T, βf::T) where {T}
+            function Compressibility(mesh::PTMesh, µ::T, ν::T, Ks::T, βs::T, βf::T) where {T}
                 nx, ny   = mesh.ni  # this is used for later
 
                 Pt_o     = @zeros(nx, ny)
@@ -182,6 +184,7 @@ function make_compressibility_struct!()
                 𝝱d, 
                 𝗕,
                 µ,
+                ν,
                 Ks, 
                 βs, 
                 βf 
@@ -200,64 +203,168 @@ end
 
 # this needs to be exported! Used for type dispatch
 abstract type OriginalDamping end
+abstract type NewDamping end
 
 
 function make_pt_struct!()
 
     @eval begin 
         struct PTCoeff{T}
-            dτPf::PTArray
-            dτPt::T
-            ## PT Pseudo-terms
-            dτV::T
-            dVxdτ::PTArray
-            dVydτ::PTArray
+            Δτₚᶠ::PTArray
+            Δτₚᵗ::T
+            Δτᵥ::T
+
+            gᵛˣ::PTArray   # residuals for Vx,Vy used in accelerated PT method 
+            gᵛʸ::PTArray
             
             ## PT damping coefficients
-            βₚₜ::T
-            dampX::T
-            dampY::T
-            Pfdmp::T
-            Pfsc::T
-            Ptsc::T
+            ηb::T          #  constant numerical bulk viscosity analogy
+
+            dampV::T
+            dampPf::T
+            dampPt::T      # not yet used
+
+            dampVx::T
+            dampVy::T
+
+            dampτ::T
+
+            # ρ̃ - for f_vi
+            # K̃ - for total pressure
+            # G̃ - for ?
+
+            # reduction for PT steps
+            Pfᵣ::T        # reduction of PT steps for fluid pressure
+            Ptᵣ::T        # reduction of PT steps for total pressure
+            Vᵣ::T         # reduction of PT steps for velocity
 
             function PTCoeff(model::Type{OriginalDamping},
-                            mesh::PTMesh, 
-                            μˢ::T,
-                            Vsc::T,
-                            βₚₜ::T,
-                            dampX::T,
-                            dampY::T,
-                            Pfdmp::T,
-                            Pfsc::T,
-                            Ptsc::T
+                            mesh::PTMesh,
+                            μˢ::T;
+                            ηb     = 1.0,
+                            dampV  = 5.0,
+                            dampPf = 0.8,
+                            dampPt = 0.0,
+                            dampτ  = 0.0,
+                            Pfᵣ   = 4.0,   # porosity wave
+                            Ptᵣ   = 2.0,   # porosity wave
+                            Vᵣ    = 2.0     # porosity wave, 2;0 was okay for fluid injection benchmark
                             ) where {T}
 
-                nx, ny   = mesh.ni  # used for computing dτV
+                nx, ny   = mesh.ni  # used for computing Δτᵥ
                 dx, dy   = mesh.di
 
-                dτV      = min(dx,dy)^2/μˢ/(1.0+βₚₜ)/4.1/Vsc     # PT time step for velocity
+                Δτᵥ      = min(dx,dy)^2/μˢ/(1.0+ηb)/4.1/Vᵣ     # PT time step for velocity
+                Δτₚᶠ     = @zeros(nx, ny)                       # depends on the array 𝐤ɸ_µᶠ
+                Δτₚᵗ     = 4.1*μˢ*(1.0+ηb)/max(nx,ny)/Ptᵣ
 
-                dτPf     = @zeros(nx, ny)
-                dτPt     = 4.1*μˢ*(1.0+βₚₜ)/max(nx,ny)/Ptsc
-                dVxdτ    = @zeros(nx-1,ny-2)
-                dVydτ    = @zeros(nx-2,ny-1)
-                        
-                return new{T}(dτPf,
-                              dτPt,
-                              dτV,
-                              dVxdτ,
-                              dVydτ,
-                              βₚₜ,
-                              dampX,
-                              dampY,
-                              Pfdmp,
-                              Pfsc,
-                              Ptsc)
-            end
+                gᵛˣ      = @zeros(nx-1,ny-2)
+                gᵛʸ      = @zeros(nx-2,ny-1)
+
+                dampVx   = 1.0-dampV/nx
+                dampVy   = 1.0-dampV/ny
+                
+                return new{T}(Δτₚᶠ,
+                              Δτₚᵗ,
+                              Δτᵥ,
+                              gᵛˣ,
+                              gᵛʸ,
+                             
+                              ηb,
+                              
+                              dampV,
+                              dampPf,
+                              dampPt,
+                              dampVx,
+                              dampVy,
+                              dampτ,
+                              
+                              Pfᵣ,
+                              Ptᵣ,
+                              Vᵣ)
+            end # end of Original damping
+
+
+            function PTCoeff(model::Type{NewDamping},
+                mesh::PTMesh, 
+                μˢ::T;
+                Reₒₚₜ    = 1.5*sqrt(10)/π,
+                rₒₚₜ     = 0.5,
+                ηb       = 1.0,
+                # dampV  = 5.0,
+                # dampPf = 0.8,
+                dampPt  = 0.0,
+                # Pfᵣ   = 4.0,
+                # Ptᵣ   = 2.0,
+                # Vᵣ    = 2.0
+                Pfᵣ   = 1.0,
+                Ptᵣ   = 1.0,
+                Vᵣ    = 1.0
+
+                ) where {T}
+
+                lx, ly   = mesh.li
+                nx, ny   = mesh.ni  # used for computing Δτᵥ
+                dx, dy   = mesh.di
+
+                Δτᵥ      = min(dx,dy)^2/μˢ/(1.0+ηb)/4.1/Vᵣ     # PT time step for velocity
+                Δτₚᶠ     = @zeros(nx, ny)                       # depends on the array 𝐤ɸ_µᶠ
+                Δτₚᵗ     = 4.1*μˢ*(1.0+ηb)/max(nx,ny)/Ptᵣ
+
+                println(Δτᵥ)
+                println(Δτₚᵗ)
+                # 0.7501805121857448
+                # 1.6046966731898236e-5
+
+                # numerical velocity
+                # Ṽ = C̃Δx/Δτ
+                C        = 1/√2      # 1/√ndim
+                C̃        = 0.95C
+                Ṽ        = (C̃*max(dx,dy)) / min(Δτᵥ, Δτₚᵗ)
+
+                gᵛˣ      = @zeros(nx-1,ny-2)
+                gᵛʸ      = @zeros(nx-2,ny-1)
+
+                dampV    = Reₒₚₜ * μˢ/Ṽ/min(lx,ly)
+                dampVx   = 1.0-dampV/nx
+                dampVy   = 1.0-dampV/ny
+
+                dampτ    = dampV * Ṽ^2 / (rₒₚₜ + 2)
+                dampPf   = rₒₚₜ * dampτ
+
+                println(dampV)
+                println(dampτ)
+                println(dampPf)
+                
+                return new{T}(Δτₚᶠ,
+                              Δτₚᵗ,
+                              Δτᵥ,
+                              gᵛˣ,
+                              gᵛʸ,
+                            
+                              ηb,
+                            
+                              dampV,
+                              dampPf,
+                              dampPt,
+                              dampVx,
+                              dampVy,
+                              dampτ,
+                            
+                              Pfᵣ,
+                              Ptᵣ,
+                              Vᵣ)
+            end # end of Original damping
 
         
-        end # end of PT struct
+        end # end of PT struct for original damping
+
+
+
+
+
+
+
     end # end of eval
 
 end # end of function

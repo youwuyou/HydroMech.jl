@@ -64,7 +64,7 @@ function environment!(model::PS_Setup{T,N}) where {T,N}
         Adapt.@adapt_structure PTCoeff
 
         #===Type dispatch for PTCoeff===#
-        export OriginalDamping
+        export OriginalDamping, NewDamping
 
 
         #==============  BOUNDARY CONDITION ================#

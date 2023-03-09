@@ -43,7 +43,7 @@ end
     # k_ɸ = k0 (ɸ/ɸ0)^nₖ    
     
     # Physics - non-dimensional parameters
-    R        = 500.0           # Compaction/decompaction strength ratio for bulk rheology
+    R        = 1.0           # Compaction/decompaction strength ratio for bulk rheology
     nₖ       = 3.0             # Carman-Kozeny exponent
     ɸ0       = 0.01            # reference porosity
     ɸA       = 2*ɸ0            # amplitude of initial porosity perturbation
@@ -51,12 +51,10 @@ end
     ηC0      = 1.0             # reference bulk viscosity
     μˢ       = ηC0*ɸ0*C                      # solid shear viscosity
     µᶠ       = 1.0
-    θ_e      = 9e-1            # relaxation factor for non-linear viscosity
-    θ_k      = 1e-1            # relaxation factor for non-linear permeability
     λp       = 0.01            # effective pressure transition zone
     k0       = 1.0             # reference permeability
 
-    rheology = ViscousRheology(μˢ,µᶠ,C,R,λp,k0,ɸ0,nₖ,θ_e,θ_k)
+    rheology = ViscousRheology(μˢ,µᶠ,C,R,λp,k0,ɸ0,nₖ)
 
 
     # TWO PHASE FLOW
@@ -78,36 +76,27 @@ end
     qDy[:,[1,end]] .= (ρsg.-ρfg).*(1.0.-𝞅0bc).*k0.*(𝞅0bc./ɸ0).^nₖ
     
     𝞰ɸ              = μˢ./𝝫./C
-    𝗞ɸ_µᶠ           = k0.*(𝝫./ɸ0)
+    𝐤ɸ_µᶠ           = k0.*(𝝫./ɸ0)
     
 
     flow              = TwoPhaseFlow2D(mesh, (ρfg, ρsg, ρgBG))
     flow.qD.y         = PTArray(qDy)
     flow.𝝫            = PTArray(𝝫)
     flow.𝞰ɸ           = PTArray(𝞰ɸ)
-    flow.𝗞ɸ_µᶠ        = PTArray(𝗞ɸ_µᶠ)
+    flow.𝐤ɸ_µᶠ        = PTArray(𝐤ɸ_µᶠ)
 
     # PHYSICS FOR COMPRESSIBILITY
     µ   = 25.0
+    ν   = 0.25      # Poisson ratio
     Ks  = 50.0 
     βs  = 0.25
     βf  = 0.04
 
-    compressibility = Compressibility(mesh, µ, Ks, βs, βf)
+    compressibility = Compressibility(mesh, µ, ν, Ks, βs, βf)
 
 
-    # PT COEFFICIENT  
-    βₚₜ      = 1.0             # numerical compressibility
-    Vsc      = 2.0             # reduction of PT steps for velocity
-    Ptsc     = 2.0             # reduction of PT steps for total pressure
-    Pfsc     = 4.0             # reduction of PT steps for fluid pressure
-    Vdmp     = 5.0             # velocity damping for momentum equations
-    Pfdmp    = 0.8             # fluid pressure damping for momentum equations
-    dampX    = 1.0-Vdmp/nx
-    dampY    = 1.0-Vdmp/ny
-    
-    pt = PTCoeff(OriginalDamping,mesh,μˢ,Vsc,βₚₜ,dampX,dampY,Pfdmp,Pfsc,Ptsc)
-
+    # PT COEFFICIENT
+    pt = PTCoeff(OriginalDamping, mesh, μˢ)
     
     # BOUNDARY CONDITIONS
     freeslip = (freeslip_x=true, freeslip_y=true)
@@ -131,7 +120,7 @@ end
     while t<t_tot
 
         # Pseudo-time loop solving
-        solve!(flow, compressibility, rheology, mesh, freeslip, pt,Δt,it)
+        solve!(flow, compressibility, rheology, mesh, freeslip, pt, Δt, it)
    
         # Visualisation
         if DO_VIZ
@@ -168,9 +157,9 @@ end
 end
 
 
-if isinteractive()
-    # PorosityWave2D_compressible(;t_tot_=0.02) # for reproducing porosity wave benchmark
+# if isinteractive()
+    PorosityWave2D_compressible(;t_tot_=0.02) # for reproducing porosity wave benchmark
     # PorosityWave2D_compressible(;t_tot_=0.03) # for R=1
 #     # PorosityWave2D_compressible(;t_tot_=0.1) # for reproducing porosity wave benchmark
-    PorosityWave2D_compressible(;t_tot_=0.0005) # for reproducing the test result
-end
+    # PorosityWave2D_compressible(;t_tot_=0.0005) # for reproducing the test result
+# end

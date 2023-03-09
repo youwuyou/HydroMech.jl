@@ -73,7 +73,7 @@ environment!(model)
    # the arrays with initial values shall be firstly defined as normal julia arrays
     𝝫              = ɸ0*ones(nx  ,ny  )
     𝞰ɸ              = μˢ./𝝫./C
-    𝗞ɸ_µᶠ           = k0.*(𝝫./ɸ0)
+    𝐤ɸ_µᶠ           = k0.*(𝝫./ɸ0)
    
    # we need to then further change the values in the object "flow" of accordingly, where we need to wrap the CPU arrays to be capable to be used on both CPU and GPU using the PTArray wrapper
    # PTArray is a compromise for the both CPU and GPU array usage in the ParallelStencil.jl package, more see MetaHydroMech.jl for details\
@@ -81,7 +81,7 @@ environment!(model)
     flow              = TwoPhaseFlow2D(mesh, (ρfg, ρsg, ρgBG))
     flow.𝝫            = PTArray(𝝫)
     flow.𝞰ɸ           = PTArray(𝞰ɸ)
-    flow.𝗞ɸ_µᶠ        = PTArray(𝗞ɸ_µᶠ)
+    flow.𝐤ɸ_µᶠ        = PTArray(𝐤ɸ_µᶠ)
 
 
     # PHYSICS FOR COMPRESSIBILITY
@@ -176,10 +176,10 @@ Let's take a peek at the `solve!()` routine of the TPF incompressible solver, we
         if (iter==11)  global wtime0 = Base.time()  end
 
         # involve the incompressible TPF solver
-        @parallel compute_params_∇!(flow.𝞰ɸ, flow.𝗞ɸ_µᶠ, flow.𝞀g, flow.∇V, flow.∇qD, flow.𝝫, flow.Pf, flow.Pt, flow.V.x, flow.V.y, flow.qD.x, flow.qD.y, rheology.μˢ, _C, rheology.R, rheology.λp, rheology.k0, _ɸ0, rheology.nₖ, rheology.θ_e, rheology.θ_k, flow.ρfg, flow.ρsg, flow.ρgBG, _dx, _dy)
+        @parallel compute_params_∇!(flow.𝞰ɸ, flow.𝐤ɸ_µᶠ, flow.𝞀g, flow.∇V, flow.∇qD, flow.𝝫, flow.Pf, flow.Pt, flow.V.x, flow.V.y, flow.qD.x, flow.qD.y, rheology.μˢ, _C, rheology.R, rheology.λp, rheology.k0, _ɸ0, rheology.nₖ, rheology.θ_e, rheology.θ_k, flow.ρfg, flow.ρsg, flow.ρgBG, _dx, _dy)
 
         # pressure update from the conservation of mass flow
-        @parallel compute_residual_mass_law!(pt.dτPt, pt.dτPf, flow.R.Pt, flow.R.Pf, flow.𝗞ɸ_µᶠ, flow.∇V, flow.∇qD, flow.Pt, flow.Pf, flow.𝞰ɸ, flow.𝝫, pt.Pfsc, pt.Pfdmp, min_dxy2, _dx, _dy)
+        @parallel compute_residual_mass_law!(pt.dτPt, pt.dτPf, flow.R.Pt, flow.R.Pf, flow.𝐤ɸ_µᶠ, flow.∇V, flow.∇qD, flow.Pt, flow.Pf, flow.𝞰ɸ, flow.𝝫, pt.Pfsc, pt.Pfdmp, min_dxy2, _dx, _dy)
         apply_free_slip!(freeslip, pt.dτPf, nx, ny)
         @parallel compute_pressure!(flow.Pt, flow.Pf, flow.R.Pt, flow.R.Pf, pt.dτPf, pt.dτPt)
         @parallel compute_tensor!(flow.𝞃.xx, flow.𝞃.yy, flow.𝞃.xy, flow.V.x, flow.V.y,  flow.∇V, flow.R.Pt, rheology.μˢ, pt.βₚₜ, _dx, _dy)
@@ -188,7 +188,7 @@ Let's take a peek at the `solve!()` routine of the TPF incompressible solver, we
         # velocity update from the conservation of momentum flow
         # for both fluid and solid
         @parallel compute_residual_momentum_law!(flow.R.Vx, flow.R.Vy, pt.dVxdτ, pt.dVydτ, flow.𝞃.xx, flow.𝞃.yy, flow.𝞃.xy, flow.Pt, flow.𝞀g, pt.dampX, pt.dampY, _dx, _dy)
-        @parallel compute_velocity!(flow.V.x, flow.V.y, flow.qD.x, flow.qD.y, pt.dVxdτ, pt.dVydτ, flow.𝗞ɸ_µᶠ, flow.Pf, pt.dτV, flow.ρfg, flow.ρgBG, _dx, _dy)
+        @parallel compute_velocity!(flow.V.x, flow.V.y, flow.qD.x, flow.qD.y, pt.dVxdτ, pt.dVydτ, flow.𝐤ɸ_µᶠ, flow.Pf, pt.dτV, flow.ρfg, flow.ρgBG, _dx, _dy)
         apply_free_slip!(freeslip, flow.V.x, flow.V.y, nx+1, ny+1)
         apply_free_slip!(freeslip, flow.qD.x, flow.qD.y, nx+1, ny+1)
     

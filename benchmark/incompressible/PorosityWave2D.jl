@@ -43,19 +43,17 @@ end
     # iii). power law permeability
     # k_ɸ = k0 (ɸ/ɸ0)^nₖ
     R        = 500.0           # Compaction/decompaction strength ratio for bulk rheology
-    nₖ       = 3.0             # Carman-Kozeny exponent    
+    nₖ       = 3.0             # Carman-Kozeny exponent
     ɸ0       = 0.01            # reference porosity
     ɸA       = 2*ɸ0            # amplitude of initial porosity perturbation
     C        = 0.1             # bulk/shear viscosity ratio
     ηC0      = 1.0             # reference bulk viscosity
     μˢ       = ηC0*ɸ0*C        # solid shear viscosity
     µᶠ       = 1.0
-    θ_e      = 9e-1            # relaxation factor for non-linear viscosity
-    θ_k      = 1e-1            # relaxation factor for non-linear permeability
-    λp       = 0.01            # effective pressure transition zone
-    k0       = 1.0                            # reference permeability
+    k0       = 1.0             # reference permeability
     
-    rheology = ViscousRheology(μˢ,µᶠ,C,R,λp,k0,ɸ0,nₖ,θ_e,θ_k)
+    
+    rheology = ViscousRheology(μˢ,µᶠ,C,R,k0,ɸ0)
 
 
     # TWO PHASE FLOW
@@ -68,36 +66,33 @@ end
     λ0                = 1.0                            # standard deviation of initial porosity perturbation
     λ                 = λ0*sqrt(k0*ηC0)                # initial perturbation wiΔth
     Radc              = zeros(nx  ,ny  )
+
+    # common coords
     Radc             .= [(((ix-1)*dx-0.5*lx)/λ/4.0)^2 + (((iy-1)*dy-0.25*ly)/λ)^2 for ix=1:size(Radc,1), iy=1:size(Radc,2)]
+
+    
+    # FIXME: geological coords is not yet fully working!
+    # Radc             .= [(((ix-1)*dx-0.5*lx)/λ/4.0)^2 + (((iy-1)*dy-0.75*ly)/λ)^2 for ix=1:size(Radc,1), iy=1:size(Radc,2)]
     𝝫                 = ɸ0*ones(nx  ,ny  )
     𝝫[Radc.<1.0]     .= 𝝫[Radc.<1.0] .+ ɸA
     
     𝞅0bc              =   mean.(𝝫[:,end])
-    qDy               =   zeros(nx  ,ny+1)
+    qDy               =   zeros(nx, ny+1)
     qDy[:,[1,end]]   .=  (ρsg.-ρfg).*(1.0.-𝞅0bc).*k0.*(𝞅0bc./ɸ0).^nₖ
-    
+
     𝞰ɸ                =   μˢ./C./𝝫
-    𝗞ɸ_µᶠ             =   k0.*(𝝫./ɸ0)
+    𝐤ɸ_µᶠ             =   k0.*(𝝫./ɸ0)
     
     flow              = TwoPhaseFlow2D(mesh, (ρfg, ρsg, ρgBG))
     flow.qD.y         = PTArray(qDy)
     flow.𝝫            = PTArray(𝝫)
     flow.𝞰ɸ           = PTArray(𝞰ɸ)
-    flow.𝗞ɸ_µᶠ        = PTArray(𝗞ɸ_µᶠ)
+    flow.𝐤ɸ_µᶠ        = PTArray(𝐤ɸ_µᶠ)
     
 
     # PT COEFFICIENT
-    βₚₜ      = 1.0             # numerical compressibility
-    Vsc      = 2.0             # reduction of PT steps for velocity
-    Ptsc     = 2.0             # reduction of PT steps for total pressure
-    Pfsc     = 4.0             # reduction of PT steps for fluid pressure
-    Vdmp     = 5.0             # velocity damping for momentum equations
-    Pfdmp    = 0.8             # fluid pressure damping for momentum equations
-    dampX    = 1.0-Vdmp/nx
-    dampY    = 1.0-Vdmp/ny
-
-    # μˢ and Vsc are used to construct dτPt
-    pt = PTCoeff(OriginalDamping,mesh,μˢ,Vsc,βₚₜ,dampX,dampY,Pfdmp,Pfsc,Ptsc)
+    # μˢ  is used to construct dτPt
+    pt = PTCoeff(OriginalDamping, mesh,μˢ)
 
     
     # BOUNDARY CONDITIONS
@@ -111,10 +106,10 @@ end
         X, Y, Yv = 0:dx:lx, 0:dy:ly, (-dy/2):dy:(ly+dy/2)
     end
     
-  
+
     # Time loop
     t_tot    = t_tot_          # total time
-    Δt       = 1e-5            # physical time-step    
+    Δt       = 1e-5            # physical time-step
     Δt_red   = 1e-3            # reduction of physical timestep
     t        = 0.0
     it       = 1
@@ -127,6 +122,9 @@ end
         # Visualisation
         if DO_VIZ
             default(size=(500,700))
+
+            # FIXME: using yflip for geological coords!
+            # default(size=(500,700), yflip=true)
             if mod(it,5)==0
                 p1 = heatmap(X, Y,  Array(flow.𝝫)'  , aspect_ratio=1, xlims=(X[1],X[end]), ylims=(Y[1],Y[end]), c=:viridis, title="porosity")
                 p2 = heatmap(X, Y,  Array(flow.Pt - flow.Pf)', aspect_ratio=1, xlims=(X[1],X[end]), ylims=(Y[1],Y[end]), c=:viridis, title="effective pressure")
@@ -138,15 +136,15 @@ end
         end
 
         # Time
-        Δt = Δt_red/(1e-10+maximum(abs.(flow.∇V)))
-        t  = t + Δt
-        it+=1
+        @show Δt = Δt_red/(1e-10+maximum(abs.(flow.∇V)))
+        t   = t + Δt
+        it += 1
     end
     
     # Visualization
     if DO_VIZ
         gif(anim, "PorosityWave2D_incompressible.gif", fps = 15)
-    end
+    end   
 
     # Testing
     ## store data in case further testings needed

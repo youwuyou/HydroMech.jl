@@ -1,22 +1,46 @@
 # Boundary Conditions
-# (1) Free slip
-# (2) no slip,
-# (3) free surface,
-# (4) fast erosion,
-# (5) infinity-like (external free slip, external no slip, Winkler basement),
-# (6) prescribed velocity (moving boundary)
 
-# 2D kernel
+# i). Dirichlet boundary condition
+@inline @inbounds @parallel_indices (iy) function dirichlet_x!(A::Data.Array, val_top::Data.Number, val_bottom::Data.Number)
+    A[1, iy]   = val_top
+    A[end, iy] = val_bottom 
+
+    return nothing
+end
+
+# eg. pt  = pf + peff
+@inline @inbounds @parallel_indices (iy) function constant_effective_pressure_x!(A::Data.Array, B::Data.Array, val::Data.Number)
+    A[1,iy]   = B[1, iy] + val
+    A[end,iy] = B[end, iy] + val
+
+    return nothing
+end
+
+
+# ii). Neumann boundary condition
+
+# CONSTANT FLUX ∂V/∂x = C for some constant
+
+# apply constant flux condition along x-axis
+@inline @inbounds @parallel_indices (iy) function constant_flux_x!(A::Data.Array, val_top::Data.Number, val_bottom::Data.Number)
+    A[1, iy]   = 2 * val_top - A[2, iy]         # constant flux at top
+    A[end, iy] = 2 * val_bottom - A[end-1, iy]  # constant flux at bottom
+    return nothing
+end
+
+
+
+# FREE SLIP
 @inline @inbounds @parallel_indices (iy) function free_slip_x!(A::Data.Array)
     A[1  , iy] = A[2    , iy]
     A[end, iy] = A[end-1, iy]
-    return
+    return nothing
 end
 
 @inline @inbounds @parallel_indices (ix) function free_slip_y!(A::Data.Array)
     A[ix, 1  ] = A[ix, 2    ]
     A[ix, end] = A[ix, end-1]
-    return
+    return nothing
 end
 
 
