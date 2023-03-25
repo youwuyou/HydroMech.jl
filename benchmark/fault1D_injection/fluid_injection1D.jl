@@ -159,7 +159,7 @@ end
     if COMPRESSIBLE
         pt = PTCoeff(OriginalDamping, mesh, 1e23, Pfᵣ = 1.0e7, Ptᵣ = 1.0e25, Vᵣ = 0.825, dampPf = 1.0, dampV  = 0.5)        # choose this norm does not get smaller than norm_Rx=5.261e-01, dt = 15
     else
-        pt = PTCoeff(ConstantStepDamping, mesh, 1e23, Pfᵣ = 1.0e7, Ptᵣ = 1.0e20, Vᵣ = 2.0)  # norm_Rx fluctuates around 1.743e-03 at it = 209000
+        pt = PTCoeff(OriginalDamping, mesh, 1e23, Pfᵣ = 1.0e7, Ptᵣ = 1.0e20, Vᵣ = 2.0)  # norm_Rx fluctuates around 1.743e-03 at it = 209000
     end
 
     

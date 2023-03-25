@@ -1,6 +1,0 @@
-[MPIPreferences]
-_format = "1.0"
-abi = "OpenMPI"
-binary = "system"
-libmpi = "/home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.3.0/openmpi-4.1.4-7zbx67o57oq6d6mfy3cziqx2hv4ihtkl/lib/libmpi.so"
-mpiexec = "/home/wyou/spack/opt/spack/linux-rocky8-zen2/gcc-11.3.0/openmpi-4.1.4-7zbx67o57oq6d6mfy3cziqx2hv4ihtkl/bin/mpiexec"
