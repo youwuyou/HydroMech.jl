@@ -8,13 +8,29 @@
     return nothing
 end
 
-# eg. pt  = pf + peff
-@inline @inbounds @parallel_indices (iy) function constant_effective_pressure_x!(A::Data.Array, B::Data.Array, val::Data.Number)
-    A[1,iy]   = B[1, iy] + val
-    A[end,iy] = B[end, iy] + val
+@inline @inbounds @parallel_indices (ix) function dirichlet_y!(A::Data.Array, val_left::Data.Number, val_right::Data.Number)
+    A[ix, 1]   = val_left
+    A[ix, end] = val_right
 
     return nothing
 end
+
+# eg. pt  = pf + peff
+# @inline @inbounds @parallel_indices (iy) function constant_effective_pressure_x!(A::Data.Array, B::Data.Array, val::Data.Number)
+#     A[1,iy]   = B[1, iy] + val
+#     A[end,iy] = B[end, iy] + val
+
+#     return nothing
+# end
+
+# eg. pf = pt - peff
+@inline @inbounds @parallel_indices (iy) function constant_effective_pressure_x!(A::Data.Array, B::Data.Array, val::Data.Number)
+    A[1,iy]   = B[1, iy] - val
+    A[end,iy] = B[end, iy] - val
+
+    return nothing
+end
+
 
 
 # ii). Neumann boundary condition
@@ -48,8 +64,8 @@ end
     freeslip_x, freeslip_y = freeslip
 
     # free slip boundary conditions
-    freeslip_x && (@parallel (1:size_Vy_y) free_slip_x!(Vy))
-    freeslip_y && (@parallel (1:size_Vx_x) free_slip_y!(Vx))
+    freeslip_x && (@parallel (1:size_Vy_y) free_slip_x!(Vy))  # applied along x-axis, A[1, iy] = A[2, iy]
+    freeslip_y && (@parallel (1:size_Vx_x) free_slip_y!(Vx))  # applied along y-axis  A[ix,1]  = A[ix,2]
 
     return nothing
 end

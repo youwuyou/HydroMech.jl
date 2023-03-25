@@ -125,23 +125,41 @@ end
     Peff = 3.0e+7,     # constant effective pressure [Pa] -> 30MPa 
 
     
-    ε       = 1e-5,      # nonlinear tolerance 
-    iterMax = 5e3,       # max nonlinear iterations
+    # ε       = 1e-5,      # nonlinear tolerance
+    ε       = 1.80e-3,      # nonlinear tolerance 
+    # iterMax = 5e3,       # max nonlinear iterations
+    iterMax = 5e5,       # max nonlinear iterations    => high value for first iteration
     nout    = 200,       # error checking frequency 
     CN      = 0.5        # Crank-Nicolson CN=0.5, Backward Euler CN=0.0
 )
 
     # unpack
-    nx, ny = mesh.ni
+    # nx, ny = mesh.ni
+    @show ny, nx = mesh.ni
+    @show rows, cols = mesh.ni  # FIXME: fix for later!
+
     dx, dy = mesh.di
 
     # precomputation
     _dx, _dy   = inv.(mesh.di)
+
+
     _ɸ0        = inv(rheology.ɸ0)
-    length_Ry  = length(flow.R.Vy)
+    length_Rx  = length(flow.R.Vx)
+    length_Ry  = length(flow.R.Vy) # new!
     length_RPf = length(flow.R.Pf)
+    length_RPt = length(flow.R.Pt)  #new!
+
     min_dxy2   = min(dx,dy)^2
     _C         = inv(rheology.C)
+
+
+    # DEBUG
+    @show size(flow.V.y)
+    @show size(flow.V.x)
+    @show size(flow.Pt)
+    @show size(flow.Pf)
+    @show size(pt.Δτₚᶠ)
 
 
     @parallel assign!(flow.𝝫_o, flow.∇V_o, flow.𝝫, flow.∇V)
@@ -155,7 +173,19 @@ end
 
         # pressure update from the conservation of mass flow
         @parallel compute_residual_mass_law!(pt.Δτₚᵗ, pt.Δτₚᶠ, flow.R.Pt, flow.R.Pf, flow.𝐤ɸ_µᶠ, flow.∇V, flow.∇qD, flow.Pt, flow.Pf, flow.𝞰ɸ, flow.𝝫, pt.Pfᵣ, pt.dampPf, min_dxy2, _dx, _dy)
-        apply_free_slip!(freeslip, pt.Δτₚᶠ, nx, ny)
+
+
+        # apply_free_slip!(freeslip, pt.Δτₚᶠ, nx, ny)
+
+        # TODO: check indices
+        # free slip boundary conditions
+        # freeslip_x && (@parallel (1:size_Vy_y) free_slip_x!(Vy))  # applied along x-axis, A[1, iy] = A[2, iy]
+        # freeslip_y && (@parallel (1:size_Vx_x) free_slip_y!(Vx))  # applied along y-axis  A[ix,1]  = A[ix,2]
+
+        @parallel (1:cols) free_slip_x!(pt.Δτₚᶠ)
+        @parallel (1:rows) free_slip_y!(pt.Δτₚᶠ)
+
+
         @parallel compute_pressure!(flow.Pt, flow.Pf, flow.R.Pt, flow.R.Pf, pt.Δτₚᶠ, pt.Δτₚᵗ)
         @parallel compute_tensor!(flow.𝞂ʼ.xx, flow.𝞂ʼ.yy, flow.𝞂ʼ.xy, flow.V.x, flow.V.y,  flow.∇V, flow.R.Pt, rheology.μˢ, pt.ηb, _dx, _dy)
 
@@ -166,29 +196,42 @@ end
         @parallel compute_velocity!(flow.V.x, flow.V.y, flow.qD.x, flow.qD.y, pt.gᵛˣ, pt.gᵛʸ, flow.𝐤ɸ_µᶠ, flow.Pf, pt.Δτᵥ, flow.ρfg, flow.ρgBG, _dx, _dy)
         
         # left/right boundary
-        @parallel (1:ny+1) free_slip_y!(flow.V.x)
-        @parallel (1:ny)   free_slip_y!(flow.V.y)
-        @parallel (1:ny)   free_slip_y!(flow.qD.y)
+        # @parallel (1:ny+1) free_slip_y!(flow.V.x)
+        # @parallel (1:ny)   free_slip_y!(flow.V.y)
+        # @parallel (1:rows)   free_slip_y!(flow.qD.y)
 
         # top & bottom boundary
-        @parallel (1:nx)   dirichlet_x!(flow.V.x, 0.5 * Vpl, -0.5 * Vpl)
-        @parallel (1:nx+1) dirichlet_x!(flow.V.y, 0.0, 0.0)
-        @parallel (1:nx)   constant_flux_x!(flow.qD.y, p⁻, p⁺)
-        @parallel (1:nx)   constant_effective_pressure_x!(flow.Pt, flow.Pf, Peff)
+        # @parallel (1:cols)   dirichlet_x!(flow.V.x, 0.5 * Vpl, -0.5 * Vpl)
+
+        @parallel (1:cols)       dirichlet_x!(flow.V.x, 0.0, 0.0)
+        @parallel (1:rows+1)     dirichlet_y!(flow.V.x, 0.0, 0.0)
+        @parallel (1:cols+1)     dirichlet_x!(flow.V.y, 0.0, 0.0)
+        @parallel (1:rows)       dirichlet_y!(flow.V.y, 0.0, 0.0)
+
+
+        # @parallel (1:nx)   constant_flux_x!(flow.qD.y, p⁻, p⁺)
+        @parallel (1:cols)   constant_effective_pressure_x!(flow.Pt, flow.Pf, Peff)
 
         
         # used for fluid injection benchmark! Otherwise not!
         flow.Pf[h_index, 1] = p₀f + Δpf      # constant fluid injection to the leftmost injection point on the fault
-        
-        # FIXME: not updating porosity in Dal Zilio (2022)
-        # @parallel compute_porosity!(flow.𝝫, flow.𝝫_o, flow.∇V, flow.∇V_o, CN, Δt)
 
 
         if mod(iter,nout)==0
-            global norm_Ry, norm_RPf
-            norm_Ry = norm(flow.R.Vy)/length_Ry; norm_RPf = norm(flow.R.Pf)/length_RPf; err = max(norm_Ry, norm_RPf)
-            # @printf("iter = %d, err = %1.3e [norm_Ry=%1.3e, norm_RPf=%1.3e] \n", iter, err, norm_Ry, norm_RPf)
+            global norm_Rx, norm_Ry, norm_RPf, norm_RPt
+            norm_Rx  = norm(flow.R.Vx)/length_Rx
+            norm_Ry  = norm(flow.R.Vy)/length_Ry
+            norm_RPf = norm(flow.R.Pf)/length_RPf
+            norm_RPt = norm(flow.R.Pt)/length_RPt
+            
+            err = max(norm_Rx, norm_Ry, norm_RPf, norm_RPt)
+            @printf("iter = %d, err = %1.3e [norm_Rx=%1.3e, norm_Ry=%1.3e, norm_RPf=%1.3e, norm_RPt=%1.3e] \n", iter, err, norm_Rx, norm_Ry, norm_RPf, norm_RPt)
         end
+
+
+
+
+
         iter+=1; niter+=1
     end
 

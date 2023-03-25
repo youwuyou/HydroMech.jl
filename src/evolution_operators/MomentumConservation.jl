@@ -41,12 +41,12 @@ end
 @inbounds @parallel function compute_velocity!(Vx::Data.Array, Vy::Data.Array, qDx::Data.Array, qDy::Data.Array, gᵛˣ::Data.Array, gᵛʸ::Data.Array, 𝐤ɸ_µᶠ::Data.Array, Pf::Data.Array, Δτᵥ::Data.Number, ρfg::Data.Number, ρgBG::Data.Number, _dx::Data.Number, _dy::Data.Number)
 
     # i). total momentum, velocity update
-    # vᵢⁿ = vᵢⁿ⁻¹ + Δτ_vᵢ g_vᵢⁿ for i in x,y    
-    @inn(Vx)  =  @inn(Vx) + Δτᵥ*@all(gᵛˣ)
-    @inn(Vy)  =  @inn(Vy) + Δτᵥ*@all(gᵛʸ)
+    # vᵢⁿ = vᵢⁿ⁻¹ + Δτ_vᵢ g_vᵢⁿ for i in x,y
+    @inn(Vx)  =  @inn(Vx) + Δτᵥ* @all(gᵛˣ)
+    @inn(Vy)  =  @inn(Vy) + Δτᵥ* @all(gᵛʸ)
 
     # ii). fluid momentum, velocity update
-    # qDᵢⁿ = - k^ɸ/ µ^f (∇Pf - Pf·g)
+    # qDᵢⁿ = - k^ɸ/ µ^f (∇Pf - ρ·g)
 
     # (gpu)
     @inn(qDx) = -@av_xi(𝐤ɸ_µᶠ)*(@d_xi(Pf)* _dx)

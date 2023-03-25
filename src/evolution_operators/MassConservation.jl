@@ -1,6 +1,6 @@
 # Mass Conservation Law
 # Compute kernel for update of physical properties for the mass conservation
-# i). incompressible
+# i).  incompressible
 # ii). compressible
 
 
@@ -24,17 +24,17 @@ end
 
 
 # compute mass conservation residual for two phase flow problem (compressible)
-@inbounds @parallel function compute_residual_mass_law!(Δτₚᶠ::Data.Array, fᴾᵗ::Data.Array, fᴾᶠ::Data.Array, 𝐤ɸ_µᶠ::Data.Array, ∇V::Data.Array, ∇qD::Data.Array, Pt::Data.Array, Pf::Data.Array, 𝞰ɸ::Data.Array, 𝝫::Data.Array, Kd::Data.Array, ɑ::Data.Array, Pt_o::Data.Array, Pf_o::Data.Array, B::Data.Array, Pfsc::Data.Number, dampPf::Data.Number, min_dxy2::Data.Number, _dx::Data.Number, _dy::Data.Number, Δt::Data.Number)
+@inbounds @parallel function compute_residual_mass_law!(Δτₚᶠ::Data.Array, fᴾᵗ::Data.Array, fᴾᶠ::Data.Array, 𝐤ɸ_µᶠ::Data.Array, ∇V::Data.Array, ∇qD::Data.Array, Pt::Data.Array, Pf::Data.Array, 𝞰ɸ::Data.Array, 𝝫::Data.Array, 𝗞d::Data.Array, 𝝰::Data.Array, Pt_o::Data.Array, Pf_o::Data.Array, 𝗕::Data.Array, Pfsc::Data.Number, dampPf::Data.Number, min_dxy2::Data.Number, Δt::Data.Number)
      @inn(Δτₚᶠ) = min_dxy2/@maxloc(𝐤ɸ_µᶠ)/4.1/Pfsc
- 
+
      # residual f_pt for compressible solid mass
-    #  + @all(ɑ) ... and + 1/@all(B) here to avoid subtraction operation due to performance
+    #  + @all(𝝰) ... and + 1/@all(B) here to avoid subtraction operation due to performance
      @all(fᴾᵗ)  =  - @all(∇V)  - (@all(Pt) - @all(Pf))/(@all(𝞰ɸ)*(1.0-@all(𝝫))) -
-                         1.0 /@all(Kd)/Δt * (@all(Pt)- @all(Pt_o) + @all(ɑ)* (@all(Pf_o) - @all(Pf)))
+                         1.0 /@all(𝗞d)/Δt * (@all(Pt)- @all(Pt_o) + @all(𝝰)* (@all(Pf_o) - @all(Pf)))
 
      #  residual f_pf for compressible fluid mass 
      @all(fᴾᶠ)  = @all(fᴾᶠ)*dampPf - @all(∇qD) + (@all(Pt) - @all(Pf))/(@all(𝞰ɸ)*(1.0-@all(𝝫))) + 
-                        @all(ɑ)/@all(Kd)/Δt * (@all(Pt) - @all(Pt_o) + 1.0/@all(B)* (@all(Pf_o) - @all(Pf)))
+                        @all(𝝰)/@all(𝗞d)/Δt * (@all(Pt) - @all(Pt_o) + 1.0/@all(𝗕)* (@all(Pf_o) - @all(Pf)))
  
      return
  end
@@ -53,6 +53,21 @@ end
     # ii). incompressible fluid mass, fluid pressure update
     # pfⁿ = pfⁿ⁻¹ + Δτ_pf f_pfⁿ
     @all(Pf)  = @all(Pf) + @all(Δτₚᶠ)*@all(fᴾᶠ)
+    
+    return nothing
+end
+
+
+# compute residual for fluid and solid mass conservation eq but with constant Δτₚᶠ
+@inbounds @parallel function compute_pressure!(Pt::Data.Array, Pf::Data.Array, fᴾᵗ::Data.Array, fᴾᶠ::Data.Array, Δτₚᶠ::Data.Number, Δτₚᵗ::Data.Number)
+
+    # i). incompressible solid mass, total pressure update
+    # ptⁿ = ptⁿ⁻¹ + Δτ_pt f_ptⁿ    
+    @all(Pt)  = @all(Pt) + Δτₚᵗ * @all(fᴾᵗ)
+    
+    # ii). incompressible fluid mass, fluid pressure update
+    # pfⁿ = pfⁿ⁻¹ + Δτ_pf f_pfⁿ
+    @all(Pf)  = @all(Pf) + Δτₚᶠ * @all(fᴾᶠ)
     
     return nothing
 end

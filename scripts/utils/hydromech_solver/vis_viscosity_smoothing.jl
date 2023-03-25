@@ -29,7 +29,7 @@ function visualize()
     
     axislegend(ax)
     
-    save("smoothed_drop_cosh.png", fig)
+    save("smoothed_drop_cosh_f.png", fig)
     
     return fig
 

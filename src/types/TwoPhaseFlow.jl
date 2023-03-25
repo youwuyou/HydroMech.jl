@@ -91,10 +91,12 @@ function make_twophase_struct!()
                 Pf  = @zeros(ni...)
                 Pt  = @zeros(ni...)
         
+                # 
                 V   = PTVector(((ni[1] + 1, ni[2]), (ni[1], ni[2] + 1)))
                 qD  = PTVector(((ni[1] + 1, ni[2]), (ni[1], ni[2] + 1)))
         
-                𝞂ʼ   = PTSymmetricTensor(((ni[1], ni[2]), (ni[1]-1, ni[2]-1), (ni[1], ni[2])))
+                # in order:   xx, xy, yy
+                𝞂ʼ   = PTSymmetricTensor(((ni[1], ni[2]), (ni[1]-1, ni[2]-1), (ni[1], ni[2])))   
 
                 𝝫   = @zeros(ni...)
                 𝞰ɸ   = @zeros(ni...)
@@ -209,8 +211,8 @@ abstract type NewDamping end
 function make_pt_struct!()
 
     @eval begin 
-        struct PTCoeff{T}
-            Δτₚᶠ::PTArray
+        mutable struct PTCoeff{T}
+            Δτₚᶠ           # not specifying type as it could be porosity-dependent array or number
             Δτₚᵗ::T
             Δτᵥ::T
 
@@ -246,9 +248,9 @@ function make_pt_struct!()
                             dampPf = 0.8,
                             dampPt = 0.0,
                             dampτ  = 0.0,
-                            Pfᵣ   = 4.0,   # porosity wave
-                            Ptᵣ   = 2.0,   # porosity wave
-                            Vᵣ    = 2.0     # porosity wave, 2;0 was okay for fluid injection benchmark
+                            Pfᵣ    = 4.0,   # porosity wave
+                            Ptᵣ    = 2.0,   # porosity wave
+                            Vᵣ     = 2.0     # porosity wave, 2;0 was okay for fluid injection benchmark
                             ) where {T}
 
                 nx, ny   = mesh.ni  # used for computing Δτᵥ
@@ -283,6 +285,7 @@ function make_pt_struct!()
                               Ptᵣ,
                               Vᵣ)
             end # end of Original damping
+
 
 
             function PTCoeff(model::Type{NewDamping},
