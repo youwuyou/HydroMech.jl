@@ -37,7 +37,7 @@ makedocs(
                     [
                         "Porosity Wave" => "benchmark-porosity-wave.md",
                         "Fluid injection" => "benchmark-fluid-injection.md"
-                    ]
+                    ],
                 "Visualization" => "visualization.md",          
                 "Development" =>
                     [
