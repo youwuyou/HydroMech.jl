@@ -35,5 +35,5 @@ The physical time step size was selected to be `Δt = 5` (s). Our numerical solu
 
 We also provide an animation of the same benchmark run.
 
-![fluid injection benchmark](./assets/images/fault_1D_injection_compressible.gif)
+![fluid injection benchmark](./assets/images/fault1D_injection_compressible.gif)
 
