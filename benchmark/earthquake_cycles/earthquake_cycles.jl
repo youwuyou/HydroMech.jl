@@ -20,16 +20,20 @@ using Plots, Plots.Measures
 
 
 
-const STORE_PRESSURE            = false   # set to true for stroing fluid pressure along fault
+const STORE_DATA                = true   # set to true for stroing fluid pressure along fault
 const INERTIA                   = true
 const VISCOUS_ELASTO_PLASTICITY = true
 const RATE_AND_STATE_FRICTION   = true
 
 
-@static if STORE_PRESSURE
+# visu switch
+const PLOTTING_DOMAIN           = false
+const PLOTTING_CYCLES           = true
+
+
+@static if STORE_DATA
     using JLD
 end
-
 
 
 ###################### PHYSICS #####################
@@ -140,12 +144,6 @@ end
 end
 
 
-@inbounds @parallel function injection_compute_pt_steps!(Δτₚᶠ::Data.Array, 𝐤ɸ_µᶠ::Data.Array, Pfᵣ::Data.Array, min_dxy2::Data.Number)
-    @inn(Δτₚᶠ) = min_dxy2/4.1/@maxloc(𝐤ɸ_µᶠ)/@inn(Pfᵣ)
-    return nothing
-end
-
-
 
 # without constant porosity
 @inbounds @parallel function injection_assign!(∇V_o::Data.Array, Pt_o::Data.Array, Pf_o::Data.Array, ∇V::Data.Array,  Pt::Data.Array, Pf::Data.Array)
@@ -243,7 +241,7 @@ end
 end
 
 
-# FIXME: visco-elasto-plastic
+# visco-elasto-plastic
 @inbounds @parallel function stokesvep_compute_tensor_newdamping!(σxxʼ::Data.Array, σyyʼ::Data.Array, σxyʼ::Data.Array, σII::Data.Array, Vx::Data.Array, Vy::Data.Array, ∇V::Data.Array, fᴾᵗ::Data.Array, Z::Data.Array, ηvp::Data.Array, µ::Data.Number, GΔτₚᵗ::Data.Number, _dx::Data.Number, _dy::Data.Number, Δt::Data.Number)
 
 
@@ -257,21 +255,14 @@ end
     # ɛ̇yy =  0.5* ( @d_ya(Vy)* _dy - @d_xa(Vx)* _dx)
     # ɛ̇xy =  0.5* (@d_yi(Vx)* _dy + @d_xi(Vy)* _dx)
 
-    # compute stress
-    # σijʼ = 2ηvp·Z·ɛ̇ij + [1 - (1- ηvp/GΔτₚᵗ)Z]·σijʼ_old
-    # @all(σxxʼ) = 2.0 * @all(ηvp) * @all(Z) * 0.5* ( @d_xa(Vx)* _dx - @d_ya(Vy)* _dy) + (1.0 - (1.0 - @all(ηvp) /GΔτₚᵗ) * @all(Z)) * @all(σxxʼ)
-    # @all(σyyʼ) = 2.0 * @all(ηvp) * @all(Z) * 0.5* ( @d_ya(Vy)* _dy - @d_xa(Vx)* _dx) + (1.0 - (1.0 - @all(ηvp) /GΔτₚᵗ) * @all(Z)) * @all(σyyʼ)
-    # @all(σxyʼ) = 2.0 * @all(ηvp) * @all(Z) * 0.5* ( @d_yi(Vx)* _dy + @d_xi(Vy)* _dx) + (1.0 - (1.0 - @all(ηvp) /GΔτₚᵗ) * @all(Z)) * @all(σxyʼ)
-
     # using the vep formulation as in gerya's script
     @all(σxxʼ) = 2.0 * @all(ηvp)* @all(Z) * 0.5* ( @d_xa(Vx)* _dx - @d_ya(Vy)* _dy) + (1.0 - @all(Z)) * @all(σxxʼ)
     @all(σyyʼ) = 2.0 * @all(ηvp)* @all(Z) * 0.5* ( @d_ya(Vy)* _dy - @d_xa(Vx)* _dx) + (1.0 - @all(Z)) * @all(σyyʼ)
     @all(σxyʼ) = 2.0 * @all(ηvp)* @all(Z) * 0.5* ( @d_yi(Vx)* _dy + @d_xi(Vy)* _dx) + (1.0 - @all(Z)) * @all(σxyʼ)
 
-
     # second stress invariant i) + ii) σII = √(1/2 σᵢⱼ'²) on staggered grid
-    # FIXME: check if correct
     @all(σII)     = sqrt(0.5 * (@av_xa(σxxʼ)^2 + @av_ya(σyyʼ)^2) + @all(σxyʼ)^2)
+
     
     return nothing
 end
@@ -279,10 +270,7 @@ end
 
 
 
-
-
-
-# FIXME: compute only on the fault
+# compute only on the fault
 @inbounds @parallel function rate_and_state_friction!(Vp, σII, Pt, Pf, a, b, Ω, F, Bool, L, σyield, ɛ̇II_plastic, ηvp::Data.Array, V0, γ0, Δt, σyieldmin, Wh, μˢ)
         
     # NOTE: Peff  = Pt - Pf    
@@ -300,6 +288,7 @@ end
 
     return nothing
 end
+# SII = 3.0e8; Peff = 40MPa
 
 
 @inbounds @parallel function adaptive_timestepping!(ξ, Bool_Δt, Δθmax, Δtdyn, Vp, a, b, Pt, Pf, L, K)
@@ -346,12 +335,6 @@ end
     # geological coordinates y-axis positive pointing downwards
     @all(fᵛˣ)    = (@d_xa(σxxʼ) - @d_xa(Pt)) * _dx + @d_ya(σxyʼ) * _dy - ρt * (@inn_x(Vx) - @inn_x(Vx_o)) * _Δt
     @all(fᵛʸ)    = (@d_ya(σyyʼ) - @d_ya(Pt)) * _dy + @d_xa(σxyʼ) * _dx + ρt*g - ρt * (@inn_y(Vy) - @inn_y(Vy_o)) * _Δt
-
-
-    # FIXME: original formulation from stokes vep
-    # @all(fᵛˣ)    = (@d_xa(σxxʼ) - @d_xa(Pt)) * _dx + @d_yi(σxyvʼ) * _dy - ρt * (@inn_x(Vx) - @inn_x(Vx_o)) * _Δt
-    # @all(fᵛʸ)    = (@d_ya(σyyʼ) - @d_ya(Pt)) * _dy + @d_xi(σxyvʼ) * _dx + @av_ya(ρg) - ρt * (@inn_y(Vy) - @inn_y(Vy_o)) * _Δt
-
 
     return nothing
 end
@@ -406,6 +389,13 @@ end
 
 
 
+@inbounds @parallel function injection_compute_pt_steps!(Δτₚᶠ::Data.Array, 𝐤ɸ_µᶠ::Data.Array, Pfᵣ::Data.Array, min_dxy2::Data.Number)
+    @inn(Δτₚᶠ) = min_dxy2/4.1/@maxloc(𝐤ɸ_µᶠ)/@inn(Pfᵣ)
+    return nothing
+end
+
+
+
 ##################### NUMERICAL ########################
 
 """The fluid injection model problem consists of a 2D square model domain Ω = [Lx, Ly]
@@ -429,20 +419,19 @@ k_ɸ = k0 (ɸ/ɸ0)^nₖ = k0 (ɸ/ɸ0)^3
 
 
     # MESH
-    lx       = 100000.0  # [m]
-    ly       = 20000.0  # [m]
-    nx       = 1001
-    ny       = 201
+    lx       = 40000.0  # [m] 40 km
+    ly       = 20000.0  # [m] 20 km
+    nx       = 321
+    ny       = 161
 
-
-    dx, dy  = lx/(nx-1), ly/(ny-1)   # grid step in x, y
-    mesh    = PTGrid((nx,ny), (lx,ly), (dx,dy))
-    _dx, _dy      = inv.(mesh.di)
-    max_nxy       = max(nx,ny)
-    min_dxy2      = min(dx,dy)^2
+    dx, dy   = lx/(nx-1), ly/(ny-1)   # grid step in x, y
+    @show mesh     = PTGrid((nx,ny), (lx,ly), (dx,dy))
+    _dx, _dy = inv.(mesh.di)
+    max_nxy  = max(nx,ny)
+    min_dxy2 = min(dx,dy)^2
         
     # index for accessing the corresponding row of the interface
-    h_index = Int((ny - 1) / 2) + 1 # row index where the properties are stored for the fault
+    @show h_index  = Int((ny - 1) / 2) + 1 # row index where the properties are stored for the fault
 
 
     # RHEOLOGY
@@ -452,9 +441,9 @@ k_ɸ = k0 (ɸ/ɸ0)^nₖ = k0 (ɸ/ɸ0)^3
     R        = 1.0             # Compaction/decompaction strength ratio for bulk rheology
 
     # from table 1
-    ɸ0       = 0.01            # reference porosity   -> 1#
+    ɸ0       = 0.01            # reference porosity
     k0       = 1e-16           # reference permeability [m²]
-    μˢ       = 1e23            # solid shear viscosity [Pa·s]
+    μˢ       = 1e21            # solid shear viscosity [Pa·s]
     µᶠ       = 1e-3            # fluid viscosity
     # default values
     # nₖ       = 3.0           # Carman-Kozeny exponent
@@ -468,33 +457,28 @@ k_ɸ = k0 (ɸ/ɸ0)^nₖ = k0 (ɸ/ɸ0)^3
 
     # TWO PHASE FLOW
     ρf       = 1.0e3                    # fluid density 1000 kg/m^3
-    ρs       = 2.7e3                    # solid density 2700 kg/m^3
+    ρs       = 2.9e3                    # solid density 2900 kg/m^3
     ρt       = ρf*ɸ0 + ρs*(1.0-ɸ0)      # density total (background)    
-    # forces
     g        = 9.81998                  # gravitational acceleration [m/s^2]
     ρfg      = ρf * g                   # force fluid
     ρsg      = ρs * g                   # force solid
     ρtg      = ρt * g                   # force total - note for total density ρt = ρf·ɸ + ρs·(1-ɸ)
     
-    flow                  = TwoPhaseFlow2D(mesh, (ρfg, ρsg, ρtg))
+    flow     = TwoPhaseFlow2D(mesh, (ρfg, ρsg, ρtg))
     
     # Initial conditions
-    ηɸ                    = μˢ/ɸ0
-    𝞰ɸ                    = fill(μˢ/ɸ0, nx, ny)
-    𝞀g                    = fill(ρtg, nx, ny)
-    
-    kɸ_fault              = 1e-15                         # domain with high permeability
-    kɸ_domain             = 1e-22                         # domain with low permeability
-    𝐤ɸ_µᶠ                 = fill(kɸ_domain/µᶠ, nx, ny)    # porosity-dependent permeability
-    𝐤ɸ_µᶠ[:, h_index]    .= kɸ_fault/µᶠ                   # along fault
-
-
+    ηɸ                   = μˢ/ɸ0
+    𝞰ɸ                   = fill(μˢ/ɸ0, nx, ny)
+    𝞀g                   = fill(ρtg, nx, ny)
+    kɸ_fault             = 1e-15                         # domain with high permeability
+    kɸ_domain            = 1e-22                         # domain with low permeability
+    𝐤ɸ_µᶠ                = fill(kɸ_domain/µᶠ, nx, ny)    # porosity-dependent permeability
+    𝐤ɸ_µᶠ[:, h_index]   .= kɸ_fault/µᶠ                   # along fault
     pf                   = 10.0e6                         # [Pa] = 10MPa Pf at t = 0
     Pf                   = fill(pf, nx, ny)
-
-    pt                   = 40.0e6                        #  [Pa] = 40MPa
+    pt                   = 40.0e6                        #  [Pa] = 50MPa
     Pt                   = fill(pt, nx, ny)
-    
+
     flow.𝞰ɸ              = PTArray(𝞰ɸ)
     flow.𝐤ɸ_µᶠ           = PTArray(𝐤ɸ_µᶠ)
     flow.Pf              = PTArray(Pf)
@@ -523,11 +507,12 @@ k_ɸ = k0 (ɸ/ɸ0)^nₖ = k0 (ɸ/ɸ0)^3
 
     # BOUNDARY CONDITIONS
     # define scalar values Vpl, p⁻, p⁺
-    Vpl     = 1.9977e-9       # loading rate [m/s] = 6.3 cm/yr
-    p⁻      = -1.0e-12        # BC top - outward flux [m/s]
-    p⁺      =  1.0e-12        # BC bottom - inward flux [m/s]
+    # Vpl     =  1.0e-9          # loading rate [m/s]
+    # Vpl     =  3.5e-10          # loading rate [m/s]
+    Vpl     =  5.0e-10          # loading rate [m/s]
+    p⁻      = -1.0e-12         # BC top - outward flux [m/s]
+    p⁺      =  1.0e-12         # BC bottom - inward flux [m/s]
     @parallel (1:nx+1) injection_dirichlet_y!(flow.V.x, -0.5*Vpl, 0.5*Vpl)
-
 
 
     # PHYSICS FOR INERTIA
@@ -555,35 +540,88 @@ k_ɸ = k0 (ɸ/ɸ0)^nₖ = k0 (ɸ/ɸ0)^3
     end
 
     if RATE_AND_STATE_FRICTION
-        #            domain   fault
-        a0        = [0.100    0.006]     # a-parameter of RSF
-        b0        = [0.003    0.005]     # b-parameter of RSF
-        Ω0        = [1e+10    1e-5]      # State variable from the preνous time step
-        L0        = [0.010    0.001]     # L-parameter of RSF (characteristic slip distance)
-        V0        = 1e-9                 # Reference slip velocity of RSF, m/s
-        γ0        = 0.6                  # Ref. Static Friction
-        σyieldmin = 1e3
-        Wh        = dy                   # fault width
-
-        # define Vp, a, b, F, Bool, Ω, σyield, ɛ̇II_plastic,  same size as SII
         Vp          = @zeros(nx-1, ny-1)
         F           = @zeros(nx-1, ny-1)
         σyield      = @zeros(nx-1, ny-1)
         ɛ̇II_plastic = @zeros(nx-1, ny-1)
-
-        a_cpu       = fill(a0[1], nx-1, ny-1)
-        b_cpu       = fill(b0[1], nx-1, ny-1)
-        Ω_cpu       = fill(Ω0[1], nx-1, ny-1)
-        L_cpu       = fill(L0[1], nx-1, ny-1)
         Bool_cpu    = fill(false, nx-1, ny-1)
 
 
-        # assign along fault [:, h_index] for rate-strengthing/weanking regions
-        @. a_cpu[401:601, h_index] = a0[2]
-        @. b_cpu[401:601, h_index] = b0[2]
-        @. Ω_cpu[401:601, h_index] = Ω0[2]
-        @. L_cpu[401:601, h_index] = L0[2]
+        # Parameters for rsf
+        #            domain   fault
+        a0        = [0.018    0.008]     # a-parameter of RSF
+        b0        = [0.001    0.016]     # b-parameter of RSF
+        Ω0        = [15           1]     # State variable from the preνious time step
+        L0        = [0.012    0.012]     # L-parameter of RSF (characteristic slip distance)
+        V0        = 1e-9                 # Reference slip velocity of RSF, m/s
+        γ0        = 0.6                  # Ref. Static Friction
+        Wh        = dy                   # fault width
+        σyieldmin = 1e3
 
+        # assign along fault [:, h_index] for rate-strengthing/weakening regions        
+        #    0km   4km    6km                 34km    36km  40km
+        #    x0    x1     x2                   x3     x4    x5
+        #    |*****|xxxxxx|                    |xxxxxx|*****|  
+        #    -----------------------------------------------
+        x0   = 0.0
+        x1   = 4.0e3
+        x2   = 6.0e3
+        x3   = 34.0e3
+        x4   = 36.0e3
+        x5   = lx
+
+        # for defining properties for rsf
+        X = LinRange(0.0, lx, nx-1)
+        Y = LinRange(0.0, ly, ny-1)
+
+
+        # Use the velocity strengthening parameters as a-b>0 on the left and right extreme of the fault, for a length of 4 km each:
+        # from 0 to 4 km in x-direction
+        # from 36 to 40 km in x-direction
+        a_cpu       = fill(a0[1], nx-1, ny-1)
+        b_cpu       = fill(b0[1], nx-1, ny-1)
+        Ω_cpu       = fill(Ω0[1], nx-1, ny-1)
+        L_cpu       = fill(L0[1], nx-1, ny-1) # L0 is identical on both regions
+
+        # setting up geometry
+        for i in 1:1:nx-1
+            for j in 1:1:ny-1
+    
+                # if along the fault
+                if j == h_index
+    
+                    # assign domain value
+                    if x0 <= X[i] <= x1 || x4 <= X[i] <= x5
+                        a_cpu[i,j] = a0[1]
+                        b_cpu[i,j] = b0[1]
+                        Ω_cpu[i,j] = Ω0[1]
+                    end
+    
+                    # assign fault value
+                    if x2 <= X[i] <= x3
+                        a_cpu[i,j] = a0[2]
+                        b_cpu[i,j] = b0[2]
+                        Ω_cpu[i,j] = Ω0[2]
+                    end
+    
+                    # assign transition zone value (left)
+                    if x1 < X[i] < x2
+                        a_cpu[i, j] = a0[1] - (a0[1] - a0[2]) * ((X[i] - x1) / (x2 - x1))
+                        b_cpu[i, j] = b0[1] - (b0[1] - b0[2]) * ((X[i] - x1) / (x2 - x1))
+                        Ω_cpu[i, j] = Ω0[1]
+                    end
+    
+                    if x3 < X[i] < x4
+                        a_cpu[i, j] = a0[2] - (a0[2] - a0[1]) * ((X[i] - x3) / (x4 - x3))
+                        b_cpu[i, j] = b0[2] - (b0[2] - b0[1]) * ((X[i] - x3) / (x4 - x3))
+                        Ω_cpu[i, j] = Ω0[1]
+                    end
+    
+                end
+    
+            end
+        end
+        
         a           = PTArray(a_cpu)
         b           = PTArray(b_cpu)
         Bool        = PTArray(Bool_cpu)
@@ -591,12 +629,9 @@ k_ɸ = k0 (ɸ/ɸ0)^nₖ = k0 (ɸ/ɸ0)^3
         L           = PTArray(L_cpu)
 
 
-
         # adaptive time stepping
         # bulk modulus
         B = 1/βs
-
-        # FIXME: why having two defs of Poisson's ratio?
         ν_timestepping = (3*B-2*µ)/(6*B+2*µ)   # ν = (3B - 2µ)/(6B + 2µ)
 
 
@@ -626,9 +661,8 @@ k_ɸ = k0 (ɸ/ɸ0)^nₖ = k0 (ɸ/ɸ0)^3
     r         = 1.0
 
     # stokes damping
-    @show Δτᵥ_ρ = VpΔτ*max_lxy/Re/μˢ         # original formulation with ρ = Re·µ
-    @show GΔτₚᵗ = VpΔτ^2/(r+2.0)/Δτᵥ_ρ/μˢ   # special case for fluid injection 
-
+    @show Δτᵥ_ρ = VpΔτ*max_lxy/Re/μˢ              # original formulation with ρ = Re·µ
+    @show GΔτₚᵗ = VpΔτ^2/(r+2.0)/Δτᵥ_ρ/μˢ         # special case for fluid injection 
 
     # darcy damping
     dampPf        = 0.6
@@ -637,8 +671,8 @@ k_ɸ = k0 (ɸ/ɸ0)^nₖ = k0 (ɸ/ɸ0)^3
     Δτₚᶠ          = PTArray(Δτₚᶠ_cpu)
 
     # define different reduce factors for the PT time step
-    Pfᵣ_domain    = 1.0e7
-    # Pfᵣ_domain    = 1.0e4
+    # Pfᵣ_domain    = 1.0e7
+    Pfᵣ_domain    = 1.0e4
     Pfᵣ_fault     = 40.0
     Pfᵣ_cpu       = fill(Pfᵣ_domain, nx, ny)
 
@@ -651,39 +685,31 @@ k_ɸ = k0 (ɸ/ɸ0)^nₖ = k0 (ɸ/ɸ0)^3
     Pfᵣ                      = PTArray(Pfᵣ_cpu)
 
     @parallel injection_compute_pt_steps!(Δτₚᶠ, flow.𝐤ɸ_µᶠ, Pfᵣ, min_dxy2)
-    @parallel (1:ny) injection_free_slip_x!(Δτₚᶠ)  # make sure the Δτₚᶠ time steps are well-defined on boundaries
+
+    # make sure the Δτₚᶠ time steps are well-defined on boundaries
+    @parallel (1:ny) injection_free_slip_x!(Δτₚᶠ)
     @parallel (1:nx) injection_free_slip_y!(Δτₚᶠ)
-    @show extrema(Δτₚᶠ)  # extrema(Δτₚᶠ) = (60975.60975609758, 6.097560975609758e11)
+    @show extrema(Δτₚᶠ)
+
 
     # VISUALIZATION
     if DO_VIZ
-        default(size=(1200,1000),fontfamily="Computer Modern", linewidth=3, framestyle=:box, margin=6mm)
+        default(size=(2200,1500),fontfamily="Computer Modern", linewidth=2, framestyle=:box, margin=7mm)
         scalefontsizes(); scalefontsizes(1.35)
 
         ENV["GKSwstype"]="nul"; if isdir("viz2D_out")==false mkdir("viz2D_out") end; loadpath = "./viz2D_out/"; anim = Animation(loadpath,String[])
         println("Animation directory: $(anim.dir)")
-
-
-        # calculate for 25 grid points spanning from x ∈ [0, 50]
-        X_plot =  LinRange(0,50,nx)
-
-        X, Y, Yv = 0:dx:lx, 0:dy:ly, (-dy/2):dy:(ly+dy/2)
-        Xv          = (-dx/2):dx:(lx+dx/2)
     end
-  
 
+  
     # Time loop
     t_tot    = t_tot_           # total time
-    # Δt       = 5.0            # physical time-step fluid injection
-    # Δt       = 3.0e7          # physical time-step Luca
-    Δt        = 1.0e7           # physical time-step 
-
+    Δt        = 3.0e7           # physical time-step
     t         = 0.0
     it        = 1
-    ε         = 1e-6            # tolerance
-    # iterMax   = 1e6           # 5e3 for porosity wave, 5e5 previously
-    iterMax   = 1e5             # 5e3 for porosity wave, 5e5 previously
-    nout      = 200
+    ε         = 1e-15           # tolerance
+    iterMax   = 3e4             # 5e3 for porosity wave, 5e5 previously
+    nout      = 1000
     time_year = 365.25*24*3600
 
     # precomputation
@@ -698,7 +724,7 @@ k_ɸ = k0 (ɸ/ɸ0)^nₖ = k0 (ɸ/ɸ0)^3
 
 
     # record evolution of time step size and slip rate
-    evo_t = Float64[]; evo_Δt = Float64[]; evo_Vp = Float64[]
+    evo_t = Float64[]; evo_Δt = Float64[]; evo_Vp = Float64[]; evo_Peff = Float64[]
 
     while t<t_tot
 
@@ -715,7 +741,6 @@ k_ɸ = k0 (ɸ/ɸ0)^nₖ = k0 (ɸ/ɸ0)^3
     
             @parallel injection_compute_∇!(flow.∇V, flow.∇qD, flow.V.x, flow.V.y, flow.qD.x, flow.qD.y, _dx, _dy)            
             @parallel injection_compute_residual_mass_law!(flow.R.Pt, flow.R.Pf, flow.𝐤ɸ_µᶠ, flow.∇V, flow.∇qD, flow.Pt, flow.Pf, flow.𝞰ɸ, ɸ0, comp.𝗞d, comp.𝝰, comp.Pt_o, comp.Pf_o, comp.𝗕, dampPf, min_dxy2, _Δt)
-            
             @parallel injection_compute_pressure_newdamping!(flow.Pt, flow.Pf, flow.R.Pt, flow.R.Pf, Δτₚᶠ, GΔτₚᵗ, r)
             
 
@@ -728,6 +753,12 @@ k_ɸ = k0 (ɸ/ɸ0)^nₖ = k0 (ɸ/ɸ0)^3
     
             if INERTIA
                 @parallel stokesvep_compute_residual_momentum_law_newdamping_inertia!(flow.R.Vx, flow.R.Vy, flow.𝞂ʼ.xx, flow.𝞂ʼ.yy, flow.𝞂ʼ.xy, flow.Pt, flow.V.x, Vx_o, flow.V.y, Vy_o, ρt, g, _dx, _dy, _Δt)
+
+
+                # TODO: maybe add adaptive time stepping for pt steps ηvp
+                # @show Δτᵥ_ρ = VpΔτ*max_lxy/Re/μˢ/3e3            # original formulation with ρ = Re·µ
+                # @show GΔτₚᵗ = VpΔτ^2/(r+2.0)/Δτᵥ_ρ/μˢ       # special case for fluid injection 
+
                 @parallel stokesvep_compute_velocity_newdamping_inertia!(flow.V.x, flow.V.y, flow.qD.x, flow.qD.y, Vfx, Vfy, Vfx_o, Vfy_o,  flow.R.Vx, flow.R.Vy, flow.𝐤ɸ_µᶠ, flow.Pf, Δτᵥ_ρ, ɸ0, ρf, g,  _dx, _dy, _Δt)
             else
                 @parallel injection_compute_residual_momentum_law_newdamping!(flow.R.Vx, flow.R.Vy, flow.𝞂ʼ.xx, flow.𝞂ʼ.yy, flow.𝞂ʼ.xy, flow.Pt, flow.𝞀g, _dx, _dy)
@@ -736,13 +767,12 @@ k_ɸ = k0 (ɸ/ɸ0)^nₖ = k0 (ɸ/ɸ0)^3
             
             
             # BOUNDARY CONDITIONS
-            # FIXME: the x-, y- coords here correspond to the coord before flipping
+            # the x-, y- coords here correspond to the coord before flipping
             @parallel (1:nx+1) injection_dirichlet_y!(flow.V.x, -0.5*Vpl, 0.5*Vpl)
             @parallel (1:nx)   injection_dirichlet_y!(flow.V.y, 0.0, 0.0)
             @parallel (1:ny)   injection_free_slip_x!(flow.V.x)
             @parallel (1:ny+1) injection_free_slip_x!(flow.V.y)
 
-            # FIXME: why no bc for qDx?
             @parallel (1:ny+1) injection_free_slip_x!(flow.qD.y)
             @parallel (1:nx)   injection_constant_flux_y!(flow.qD.y, p⁻, p⁺)
             @parallel (1:nx)   injection_constant_effective_pressure_x!(flow.Pf, flow.Pt, Peff) # confining pressure to boundaries parallel to x-axis
@@ -779,26 +809,23 @@ k_ɸ = k0 (ɸ/ɸ0)^nₖ = k0 (ɸ/ɸ0)^3
                 norm_RPt = norm(flow.R.Pt)/length_RPt
                 err = max(norm_Rx, norm_Ry, norm_RPf, norm_RPt)
                 
-                if mod(iter,nout*100) == 0
+                if mod(iter,nout*10) == 0
                     @printf("iter = %d, err = %1.3e [norm_Rx=%1.3e, norm_Ry=%1.3e, norm_RPf=%1.3e, norm_RPt=%1.3e] \n", iter, err, norm_Rx, norm_Ry, norm_RPf, norm_RPt)
                 end
     
             end
-    
     
             iter+=1; niter+=1
         end
 
 
         if RATE_AND_STATE_FRICTION
-            # @parallel rate_and_state_friction!(Vp, σII, flow.Pt, flow.Pf, a, b, Ω, F, Bool, L, σyield, ɛ̇II_plastic, ηvp, V0, γ0, Δt, σyieldmin, Wh, μˢ)
             @parallel rate_and_state_friction!(Vp[:, h_index], σII[:, h_index], flow.Pt[:, h_index], flow.Pf[:, h_index], a[:, h_index], b[:, h_index], Ω[:, h_index], F[:, h_index], Bool[:, h_index], L[:, h_index], σyield[:, h_index], ɛ̇II_plastic[:, h_index], ηvp[:, h_index], V0, γ0, Δt, σyieldmin, Wh, μˢ)
             @parallel adaptive_timestepping!(ξ, Bool_Δt, Δθmax, Δtdyn, Vp, a, b, flow.Pt, flow.Pf, L, K_timestepping)            
             # Δt = max[Δtmin, Δtdyn]
             #                        Δtdyn = Δθmax L/Vmax
-            @show Δt = max(Δt, minimum(Δtdyn))
-
-            # @show Δt = min(Δt, minimum(Δtdyn))
+            # @show Δt = max(Δt, minimum(Δtdyn))
+            @show Δt = min(Δt, minimum(Δtdyn))
 
         end
 
@@ -814,16 +841,15 @@ k_ɸ = k0 (ɸ/ɸ0)^nₖ = k0 (ɸ/ɸ0)^3
 
 
         # DEBUG
-        @show extrema(Vp)
-
-
+        @show max_Vp   = maximum(Vp[:, h_index])
+        @show max_Peff = maximum((flow.Pt[:, h_index] - flow.Pf[:, h_index])/1e6)
+        
         # store evolution of physical properties wrt time
-        @show max_Vp = maximum(Vp[:, h_index])
-        push!(evo_t, t/time_year); push!(evo_Vp, max_Vp); push!(evo_Δt, Δt)
+        push!(evo_t, t/time_year); push!(evo_Vp, max_Vp); push!(evo_Δt, Δt); push!(evo_Peff, maximum(max_Peff))
 
         # store fluid pressure for wanted time points
-        if STORE_PRESSURE && mod(it, 1) == 0
-            save("earthquake_cycles/Pf_fault" * string(it) * ".jld", "data", Array(flow.Pf[:, h_index])')   # store the fluid pressure along the fault for fluid injection benchmark
+        if STORE_DATA && mod(it, 5) == 0
+            save("earthquake_cycles/max_Vp_fault" * string(it) * ".jld", "data", Array(Vp[:, h_index])')   # store the fluid pressure along the fault for fluid injection benchmark
         end
     
         
@@ -835,17 +861,42 @@ k_ɸ = k0 (ɸ/ɸ0)^nₖ = k0 (ɸ/ɸ0)^3
         # Visualisation
         if DO_VIZ
             
-            if mod(it,1) == 0
-                p1 = plot(evo_t, evo_Vp; xlims=(0.0, 300), ylims=(1e-20, 2.0), yaxis=:log, label="", color= :dodgerblue, framestyle= :box, linestyle= :solid, 
-                         seriesstyle= :path, title="", 
-                            xlabel = "Time [year]", ylabel="Slip Rate [m/s]")
+            # plotting the fault
+            if PLOTTING_CYCLES && mod(it,1) == 0
+                p1 = plot(evo_t, evo_Vp; xlims=(0.0, 1100), ylims=(1.0e-10, 1.0e2), yaxis=:log, yticks =[1e-10, 1e-8, 1e-6, 1e-4, 1e-2, 1e0, 1e2], label="", color= :dodgerblue, framestyle= :box, linestyle= :solid, 
+                         seriesstyle= :path, title="H-MEC Simulation (t = " * string(@sprintf("%.3f", t/time_year)) * " year )", 
+                            xlabel = "Time [year]", ylabel="Slip Rate [m/s]" )
 
-                p2 = plot(evo_t, evo_Δt; xlims=(0.0, 300), ylims=(1e-2, 1e6), yaxis=:log, label="", framestyle= :box, linestyle= :solid, 
+                p2 = plot(evo_t, evo_Δt; xlims=(0.0, 1100), ylims=(1e-2, 8.0e7), yaxis=:log, yticks = [1e-2, 1e0, 1e2, 1e4, 1e6, 1e8], label="", color= :tomato, framestyle= :box, linestyle= :solid, 
+                    seriesstyle= :path, title="",
+                    xlabel = "Time [year]", ylabel="Time step size [s]" )
+
+                p3 = plot(evo_t, evo_Peff; xlims=(0.0, 1100), ylims=(0.0, 35.0), yticks=[10, 20, 30], label="", color= :forestgreen, framestyle= :box, linestyle= :solid, 
                     seriesstyle= :path, title="", 
-                    xlabel = "Time [year]", ylabel="Time step size [s]")
+                    xlabel = "Time [year]", ylabel="Effective pressure [MPa]" )
+
    
-                display(plot(p1, p2; layout=(2,1))); frame(anim)
-            end            
+                display(plot(p1, p2, p3; layout=(3,1))); frame(anim)
+            end
+            
+
+            # plotting whole domain
+            if PLOTTING_DOMAIN && mod(it,1) == 0
+
+                X_plot, Y_plot, Xv_plot, Yv_plot = 0:dx:lx, 0:dy:ly, (-dx/2):dx:(lx+dx/2), (-dy/2):dy:(ly+dy/2)
+                p1 = heatmap(Xv_plot, Y_plot, Array(flow.V.x)', aspect_ratio=1, xlims=(Xv_plot[1],Xv_plot[end]), ylims=(Y_plot[1],Y_plot[end]), c=:RdBu, title="horizontal velocity")
+                p2 = heatmap(X_plot, Yv_plot, Array(flow.V.y)', aspect_ratio=1, xlims=(X_plot[1],X_plot[end]), ylims=(Yv_plot[1],Yv_plot[end]), c=:RdBu, title="vertical velocity")
+                p3 = heatmap(X_plot, Y_plot, Array(σII)', aspect_ratio=1, xlims=(X_plot[1],X_plot[end]), ylims=(Y_plot[1],Y_plot[end]), c=:RdBu, title="2nd stress invariant")
+                p4 = heatmap(Xv_plot, Y_plot, Array(flow.qD.x)', aspect_ratio=1, xlims=(Xv_plot[1],Xv_plot[end]), ylims=(Y_plot[1],Y_plot[end]), c=:RdBu, title="horizontal darcy velocity")
+                p5 = heatmap(X_plot, Yv_plot, Array(flow.qD.y)', aspect_ratio=1, xlims=(X_plot[1],X_plot[end]), ylims=(Yv_plot[1],Yv_plot[end]), c=:RdBu, title="vertical darcy velocity")
+                p6 = heatmap(X_plot, Y_plot, Array(σyield)', aspect_ratio=1, xlims=(X_plot[1],X_plot[end]), ylims=(Y_plot[1],Y_plot[end]), c=:RdBu, title="yielding stress")
+                p7 = heatmap(X_plot, Y_plot, Array(flow.Pt-flow.Pf)', aspect_ratio=1, xlims=(X_plot[1],X_plot[end]), ylims=(Y_plot[1],Y_plot[end]), c=:RdBu, title="effective pressure")
+                p8 = heatmap(X_plot, Y_plot, Array(flow.Pf)', aspect_ratio=1, xlims=(X_plot[1],X_plot[end]), ylims=(Y_plot[1],Y_plot[end]), c=:RdBu, title="fluid pressure")
+                p9 = heatmap(X_plot, Y_plot, Array(ηvp)', aspect_ratio=1, xlims=(X_plot[1],X_plot[end]), ylims=(Y_plot[1],Y_plot[end]), c=:RdBu, title="effective viscosity")
+
+                display(plot(p1, p2, p3, p4, p5, p6, p7, p8, p9; layout=(3,3))); frame(anim)
+
+            end
 
         end
     end
@@ -855,12 +906,23 @@ k_ɸ = k0 (ɸ/ɸ0)^nₖ = k0 (ɸ/ɸ0)^3
         gif(anim, "earthquake_cycles.gif", fps = 15)
     end
 
+
+    if STORE_DATA
+        save("earthquake_cycles/evo_t" * string(it) * ".jld", "data", Array(evo_t)')   # store the fluid pressure along the fault for fluid injection benchmark
+        save("earthquake_cycles/evo_Vp" * string(it) * ".jld", "data", Array(evo_Vp)')   # store the fluid pressure along the fault for fluid injection benchmark
+        save("earthquake_cycles/evo_Δt" * string(it) * ".jld", "data", Array(evo_Δt)')   # store the fluid pressure along the fault for fluid injection benchmark
+        save("earthquake_cycles/evo_Peff" * string(it) * ".jld", "data", Array(evo_Peff)')   # store the fluid pressure along the fault for fluid injection benchmark
+    end
+
+
     # return effective pressure at final time
     return Array(flow.Pt - flow.Pf)[:, h_index-1:h_index+1]'
 
 end
 
 
+
 if isinteractive()
-    earthquake_cycles(;t_tot_= 1.0e7) # for reproducing fluid injection benchmark
+    earthquake_cycles(;t_tot_= 3.0e7) # 1 step 
+    # earthquake_cycles(;t_tot_= 1.265e10)  # 400 years
 end
