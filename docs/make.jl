@@ -38,7 +38,7 @@ makedocs(
                         "Porosity Wave" => "benchmark-porosity-wave.md",
                         "Fluid injection" => "benchmark-fluid-injection.md"
                     ],
-                "Visualization" => "visualization.md",          
+                # "Visualization" => "visualization.md",          
                 "Development" =>
                     [
                         "Roadmap" => "roadmap.md",
@@ -60,8 +60,8 @@ makedocs(
                                               "Testing"     => "justrelax-Testing.md"
                                             ],
 
-                        "ParallelStencil" => "parallelstencil.md",
-                        "JuliaGeodynamics" => "juliageodynamics.md"
+                        # "ParallelStencil" => "parallelstencil.md",
+                        # "JuliaGeodynamics" => "juliageodynamics.md"
                     ],
  
                 "License" => "license.md"

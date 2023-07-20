@@ -28,12 +28,12 @@ We used following parameters in the benchmark performed, which were kept identic
 
 
 
-The physical time step size was selected to be `Δt = 5` (s). Our numerical solution identically overlap with the analytical solution, at `nx = 1001` grid points which we set along the fault.
+The physical time step size was selected to be `Δt = 5` (s). Our numerical solution overlaps with the analytical solution, at `nx = 1001` grid points which we set along the fault.
 
 
 ## Animation
 
 We also provide an animation of the same benchmark run.
 
-![fluid injection benchmark](./assets/images/fault1D_injection_compressible.gif)
+![fluid injection animation](./assets/images/fault1D_injection_compressible.gif)
 

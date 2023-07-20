@@ -2,23 +2,13 @@
 
 [![CI action](https://github.com/youwuyou/HydroMech.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/youwuyou/HydroMech.jl/actions/workflows/ci.yml) 
 
+- [website documentation](http://justrelax-framework.org/dev/)
+
+Modeling earthquake source processes with an accelerated pseudo-transient solver.
 
 ## Description
 
-HydroMech.jl was developed during the attendance of the course 101-0250-00 at ETH Zürich, which is designed to be a module of the PTSolver/JustRelax.jl package. It utilizes the pseudo-transient method for efficiency of the PDEs solving. It is designed to be able to run on both CPUs and GPUs.
-
-
-## Course project hand-out
-
-### HydroMech.jl
-
-- Hydro-mechanical solvers (2D, 3D) as an integrated part of the [JustRelax.jl](https://github.com/PTsolvers/JustRelax.jl) package
-
-- [website documentation](http://justrelax-framework.org/dev/)
-
-NOTE: we use the [Documenter.jl](https://github.com/JuliaDocs/Documenter.jl) package to generate the static website which contains the detailed documentation of the project containing the run instructions, code structure, further optimizations and the benchmarking results using the learnt techniques of the Julia distributed computing in the [course 101-0250-00 Solving PDEs in parallel on GPUs](https://github.com/eth-vaw-glaciology/course-101-0250-00) at ETH Zürich.
-
-
+The physics of the PT solver package HydroMech.jl is formulated based on the numerical framework [H-MEC](https://www.sciencedirect.com/science/article/pii/S0040195122003109), which is a continuum-based modeling approach that is developed to investigate physical systems that comprise both fluid (hydro) and solid (mechanical) phases, thereby referred to as "hydro-mechanical". The goal is to simulate how crustal stress and fluid pressure evolve during the earthquake cycle.
 
 
 ## Structure
