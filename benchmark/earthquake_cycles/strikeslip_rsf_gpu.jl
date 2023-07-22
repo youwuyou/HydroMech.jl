@@ -1,6 +1,6 @@
-# Script derived from Stokes2D_vep_reg_IU.jl
-# Physics: Incompressible stokes equation with VEP
+# Physics: Incompressible stokes equation with VEP + rate- and state-dependent friction
 #          - momentum equation with inertia effects included
+
 using HydroMech
 
 # setup ParallelStencil.jl environment
@@ -10,12 +10,19 @@ environment!(model)
 
 # NOTE: despite of using the package we initialize here again because 
 # we need to use the type Data.Array, Data.Number for argument types
-const USE_GPU = true  # Use GPU? If this is set false, then no GPU needs to be available
+const USE_GPU    = true  # Use GPU? If this is set false, then no GPU needs to be available
+const STORE_DATA = true
+
 @static if USE_GPU
         @init_parallel_stencil(CUDA, Float64, 2)
 else
         @init_parallel_stencil(Threads, Float64, 2)
 end
+
+@static if STORE_DATA
+    using JLD
+end
+
 
 
 using Plots, Plots.Measures, LinearAlgebra,Printf
@@ -32,7 +39,8 @@ using LaTeXStrings
 
 # VISUALIZATION
 if DO_VIZ
-    default(size=(3200,1700),fontfamily="Computer Modern", linewidth=2, framestyle=:box, margin=7mm)
+    # default(size=(3500,1700),fontfamily="Computer Modern", linewidth=2, framestyle=:box, margin=7mm)
+    default(size=(1500,1800),fontfamily="Computer Modern", linewidth=2, framestyle=:box, margin=7mm)
     scalefontsizes(); scalefontsizes(1.35)
 
     ENV["GKSwstype"]="nul"; if isdir("vizGPU_out")==false mkdir("vizGPU_out") end; loadpath = "./vizGPU_out/"; anim = Animation(loadpath,String[])
@@ -89,9 +97,13 @@ end
 @inbounds @parallel function compute_ve_stress!(Exy, τxx, τyy, τxy, τxyc, τxx_o, τyy_o, τxy_o, τxyc_o, Vx, Vy, η_ve_τ, η_ve_τv, η_e, η_ev, Gdτ, Gdτv, _dx, _dy)
 
     @inn(Exy) = 0.5 * (@d_yi(Vx) * _dy + @d_xi(Vy) * _dx)
-    @all(τxx) = 2.0*@all(η_ve_τ)*(@d_xa(Vx)* _dx + 0.5*@all(τxx_o)/@all(η_e) + 0.5*@all(τxx)/@all(Gdτ))
-    @all(τyy) = 2.0*@all(η_ve_τ)*(@d_ya(Vy)* _dy + 0.5*@all(τyy_o)/@all(η_e) + 0.5*@all(τyy)/@all(Gdτ))
-    @all(τxyc) = 2.0*@all(η_ve_τ)*(@av(Exy) + 0.5*@all(τxyc_o)/@all(η_e) + 0.5*@all(τxyc)/@all(Gdτ))
+    # @all(τxx) = 2.0*@all(η_ve_τ)*(@d_xa(Vx)* _dx + 0.5*@all(τxx_o)/@all(η_e) + 0.5*@all(τxx)/@all(Gdτ))
+    # @all(τyy) = 2.0*@all(η_ve_τ)*(@d_ya(Vy)* _dy + 0.5*@all(τyy_o)/@all(η_e) + 0.5*@all(τyy)/@all(Gdτ))
+    # @all(τxyc) = 2.0*@all(η_ve_τ)*(@av(Exy) + 0.5*@all(τxyc_o)/@all(η_e) + 0.5*@all(τxyc)/@all(Gdτ))
+
+    @all(τxx) = (1.0 - 0.5)*@all(τxx) +  0.5*(2.0*@all(η_ve_τ)*(@d_xa(Vx)* _dx + 0.5*@all(τxx_o)/@all(η_e) + 0.5*@all(τxx)/@all(Gdτ)))
+    @all(τyy) = (1.0 - 0.5)*@all(τyy) +  0.5*(2.0*@all(η_ve_τ)*(@d_ya(Vy)* _dy + 0.5*@all(τyy_o)/@all(η_e) + 0.5*@all(τyy)/@all(Gdτ)))
+    @all(τxyc) = (1.0 - 0.5)*@all(τxyc) +  0.5*(2.0*@all(η_ve_τ)*(@av(Exy) + 0.5*@all(τxyc_o)/@all(η_e) + 0.5*@all(τxyc)/@all(Gdτ)))
 
     return nothing
 end 
@@ -99,15 +111,21 @@ end
 
 @inbounds @parallel function compute_tensor!(τxy, η_ve_τv, Exy, τxy_o, η_ev, Gdτv)
 
-    @all(τxy) = 2.0*@all(η_ve_τv)*(@all(Exy) + 0.5*@all(τxy_o)/@all(η_ev) + 0.5*@all(τxy)/@all(Gdτv))
+    # @all(τxy) = 2.0*@all(η_ve_τv)*(@all(Exy) + 0.5*@all(τxy_o)/@all(η_ev) + 0.5*@all(τxy)/@all(Gdτv))
+    @all(τxy) = (1.0 -0.5)*@all(τxy) + 0.5*( 2.0*@all(η_ve_τv)*(@all(Exy) + 0.5*@all(τxy_o)/@all(η_ev) + 0.5*@all(τxy)/@all(Gdτv)))
 
     return nothing
 end
 
 
 @inbounds @parallel function compute_slip_rate!(Vp, τii, a, b, Ω, γ, Pt, V0)
-    @all(Vp) = 2.0*V0*sinh(@all(τii)/@all(a)/Pt)/exp((@all(b)*@all(Ω) + @all(γ))/@all(a))
+    # @all(Vp) = 2.0*V0*sinh(@all(τii)/@all(a)/Pt)/exp((@all(b)*@all(Ω) + @all(γ))/@all(a))
     # @all(Vp) = 2.0*V0*sinh(@all(τii)/@all(a)/@all(Pr))/exp((@all(b)*@all(Ω) + @all(γ))/@all(a))
+
+    @all(Vp) = (1.0 - 0.01) * @all(Vp) + 0.01*(2.0*V0*sinh(@all(τii)/@all(a)/Pt)/exp((@all(b)*@all(Ω) + @all(γ))/@all(a)))
+
+    # @all(K_muf) = (1.0-θ_k)*@all(K_muf) + θ_k*( k_μf0 * (@all(Phi)/ϕ0)^nperm )
+
     
     return nothing
 end
@@ -179,6 +197,7 @@ end
 @inbounds @parallel function compute_state_parameter!(Ω, Vp, dt, V0, L)
 
     @all(Ω) = @all(Ω) + dt * (V0 * exp(-@all(Ω)) - @all(Vp)) / L
+    # @all(Ω) = (1.0 - 0.1) * @all(Ω) + 0.1*(@all(Ω) + dt * (V0 * exp(-@all(Ω)) - @all(Vp)) / L)
 
     return nothing
 end
@@ -188,27 +207,18 @@ end
 # main function
 @views function Stokes2D_vep()
     # numerics
-    lx       = 40000.0  # [m] 40 km
-    ly       = 20000.0  # [m] 20 km
-
-    nx       = 40
-    ny       = 20
-
-
-    # nx       = 80
-    # ny       = 40
-
-    # nx       = 640
-    # ny       = 320
-
-    nt       = 10
-    # nt       = 1000
+    lx       = 370000.0  # [m] 370 km
+    ly       = 370000.0
+    nx       = 100
+    ny       = 100
+    # nt       = 600
+    nt       = 140
     εnl      = 1e-6
     time_year = 365.25*24*3600
     maxiter = 10000
 
-
-    nchk    = 100max(nx,ny)
+    # nchk    = 100max(nx,ny)
+    nchk    = 10max(nx,ny)
     Re      = 5π
     r       = 1.0
     CFL     = 0.99/sqrt(2)
@@ -226,10 +236,6 @@ end
 
 
     # phyics
-    # η0      = 1.0e15          # viscosity
-    # η0      = 5.0e15          # viscosity
-    # η0      = 1.0e16          # viscosity
-
     η0      = 1.0e23          # viscosity
     G0      = 3.0e10          # shear modulus
 
@@ -275,11 +281,9 @@ end
     #            domain   fault
     a0        = [0.011    0.011]     # a-parameter of RSF
     b0        = [0.017    0.001]     # b-parameter of RSF    
-    # Ω0        = [40.0    -1.0]     # State variable from the preνious time step
-    Ω0        = [20.0    -1.0]     # State variable from the preνious time step
-
-
-    V0        = 4.0e-9               # characteristic slip rate
+    Ω0        = [40.0    -1.0]       # State variable from the preνious time step
+    V0        = 4.0e-9               # characteristic slip rate for aseismic slip
+    # V0        = 1.0e-6               # characteristic slip rate used in paper, not working yet
     γ0        = 0.2                  # Reference Friction
 
     γ_cpu     = fill(γ0, nx,ny)
@@ -297,12 +301,35 @@ end
     #    x0    x1     x2                   x3     x4    x5
     #    |*****|xxxxxx|                    |xxxxxx|*****|  
     #    -----------------------------------------------
+    # x0   = 0.0
+    # x1   = 4.0e3
+    # x2   = 6.0e3
+    # x3   = 34.0e3
+    # x4   = 36.0e3
+    # x5   = lx
+
+    #    0km   16km    32km                118km   134km  150km
+    #    x0    x1     x2                   x3     x4    x5
+    #    |*****|xxxxxx|                    |xxxxxx|*****|  
+    #    -----------------------------------------------
+    # x0   = 0.0
+    # x1   = 16.0e3
+    # x2   = 32.0e3
+    # x3   = 118.0e3
+    # x4   = 134.0e3
+    # x5   = lx
+
+    #    0km   37km    74km                296km   333km  370m
+    #    x0    x1     x2                   x3     x4    x5
+    #    |*****|xxxxxx|                    |xxxxxx|*****|  
+    #    -----------------------------------------------
     x0   = 0.0
-    x1   = 4.0e3
-    x2   = 6.0e3
-    x3   = 34.0e3
-    x4   = 36.0e3
+    x1   = 37.0e3
+    x2   = 74.0e3
+    x3   = 296.0e3
+    x4   = 333.0e3
     x5   = lx
+
 
     # for defining properties for rsf
     # X = LinRange(0.0, lx, nx-1)
@@ -313,6 +340,7 @@ end
 
             # if along the fault
             if j == h_index
+            # if j in [h_index-1, h_index, h_index+1]
 
                 # assign domain value
                 if x0 <= X[i] <= x1 || x4 <= X[i] <= x5
@@ -356,7 +384,7 @@ end
     Ω   = PTArray(Ω_cpu)
     # L   = PTArray(L_cpu)
 
-    L   = 0.01
+    L   = 0.001  # for aseismic slip
  
     # initial velocity
     VL        = 2.0e-9    
@@ -397,6 +425,9 @@ end
     # FIXME: intialize stress such that frictional coefficient is of order 1e-2
     @. τxy_cpu   = 0.1*Pt
     @. τxyc_cpu  = 0.1*Pt
+
+    # @. τxy_cpu   = 0.5*Pt
+    # @. τxyc_cpu  = 0.5*Pt
 
     τxy  = PTArray(τxy_cpu)
     τxyc = PTArray(τxyc_cpu)
@@ -450,7 +481,11 @@ end
         # FIXME: ADD ADAPTIVE TIMESTEPPING HERE
         # @show dt = min(1.9*L/maximum(Vp), 0.1*time_year)
         # @show dt = min(dx*1e-5/maximum(Vp), 0.1*time_year)
-        @show dt = min(1.9*dx/maximum(Vp), 0.1*time_year)
+        # @show dt = min(1.9*dx/maximum(Vp), 0.1*time_year)
+        # @show dt = min(1.9*dx*1e-7/maximum(Vp), 5time_year)
+        @show dt = min(1.9*dx*1e-7/maximum(Vp), 5time_year)
+
+        # @show dt = min(1.9*dx/maximum(Vp), 5time_year)
 
         η_e   = G.*dt; η_ev = Gv.*dt
         @. η_ve  = 1.0/(1.0/η  + 1.0/η_e)
@@ -471,8 +506,7 @@ end
     
         # for stress update
         @. η_ve_τ  = 1.0/(1.0/η + 1.0/η_e + 1.0/Gdτ)
-        @. η_ve_τv = 1.0/(1.0/ηv + 1.0/η_ev + 1.0/Gdτv)
-        
+        @. η_ve_τv = 1.0/(1.0/ηv + 1.0/η_ev + 1.0/Gdτv)        
         _dt     = inv(dt)
 
 
@@ -499,7 +533,7 @@ end
 
             # plastic correction [x] correct!
             @parallel compute_plastic_correction!(λ[:, h_index], Vp[:, h_index], τxx[:, h_index], τyy[:, h_index], τxy[:, h_index], τxyc[:, h_index], τii[:, h_index], η_ve_τ[:, h_index], η_ve_τv[:, h_index], _dx)
-
+            # @parallel compute_plastic_correction!(λ[:, h_index-1:h_index+1], Vp[:, h_index-1:h_index+1], τxx[:, h_index-1:h_index+1], τyy[:, h_index-1:h_index+1], τxy[:, h_index-1:h_index+1], τxyc[:, h_index-1:h_index+1], τii[:, h_index-1:h_index+1], η_ve_τ[:, h_index-1:h_index+1], η_ve_τv[:, h_index-1:h_index+1], _dx)
             # second invariant [x] correct!
             @parallel compute_second_invariant!(τii, τxx, τyy, τxyc)
 
@@ -531,7 +565,11 @@ end
         @show max_τii         = maximum(τii)
 
 
-        # @parallel compute_state_parameter!(Ω, Vp, dt, V0, L)
+
+        # store fluid pressure for wanted time points
+        if STORE_DATA && mod(it, 1) == 0
+            save("earthquake_cycles/max_Vp_fault" * string(it) * ".jld", "data", Array(Vp[:, h_index])')   # store the fluid pressure along the fault for fluid injection benchmark
+        end
 
         t += dt; push!(evo_t, t); push!(evo_τxx, maximum(τxx))
         
@@ -539,30 +577,46 @@ end
         push!(evo_t_year, t/time_year); push!(evo_Vp, max_Vp);
 
         # p1 = heatmap(xc,yc,log.(Array(Vp)/V0)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title=L"$\log_{10}(\frac{V_P}{V_0})$")
-        p1 = heatmap(xc,yc,log.(Array(Vp))',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title=L"$\log_{10}(V_P)$")
+        # p1 = heatmap(xc,yc,log.(Array(Vp))',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title=L"$\log_{10}(V_P)$")
 
-        p2 = heatmap(xc,yc,Array(Pr)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title=L"$P$")
-        p3 = heatmap(xc,yc,Array(τxx)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title=L"$\tau_\mathrm{xx}$")
-        p4 = heatmap(xc,yc,Array(τyy)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title=L"$\tau_\mathrm{yy}$")
-        p5 = heatmap(xv,yv,Array(τxy)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title=L"$\tau_\mathrm{xy}$")
-        p6 = heatmap(xc,yc,Array(τii)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title=L"$\tau_\mathrm{II}$")
-        p7 = heatmap(xv,yc,Array(Vx)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title="Vx")
-        p8 = heatmap(xc,yv,Array(Vy)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title="Vy")
+        # p2 = heatmap(xc,yc,Array(Pr)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title=L"$P$")
+        # p3 = heatmap(xc,yc,Array(τxx)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title=L"$\tau_\mathrm{xx}$")
+        # p4 = heatmap(xc,yc,Array(τyy)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title=L"$\tau_\mathrm{yy}$")
+        # p5 = heatmap(xv,yv,Array(τxy)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title=L"$\tau_\mathrm{xy}$")
+        # p6 = heatmap(xc,yc,Array(τii)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title=L"$\tau_\mathrm{II}$")
+        # p7 = heatmap(xv,yc,Array(Vx)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title="Vx")
+        # p8 = heatmap(xc,yv,Array(Vy)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title="Vy")
 
-        p9 = plot(X, Array(τxx)[:, h_index] , legend=false, xlabel="", xlims=(0.0,lx), title="Shear stress on the fault", framestyle=:box, markersize=3)
-        p10 = plot(X, Array(Ω)[:, h_index] , legend=false, xlabel="", xlims=(0.0,lx), title="State variable", framestyle=:box, markersize=3)
-        p11 = plot(X, Array(Vp)[:, h_index] , legend=false, xlabel="", xlims=(0.0,lx), title="Slip rate", framestyle=:box, markersize=3)
+        # p9 = plot(X, Array(τxx)[:, h_index] , legend=false, xlabel="", xlims=(0.0,lx), title="Shear stress on the fault", framestyle=:box, markersize=3)
+        # p10 = plot(X, Array(Ω)[:, h_index] , legend=false, xlabel="", xlims=(0.0,lx), title="State variable", framestyle=:box, markersize=3)
+        # p11 = plot(X, Array(Vp)[:, h_index] , legend=false, xlabel="", xlims=(0.0,lx), title="Slip rate", framestyle=:box, markersize=3)
      
-        # FIXME: changed here!
-        p12 = plot(evo_t_year, evo_Vp; xlims=(0.0, 1000), ylims=(1.0e-13, 1.0e2), yaxis=:log, yticks =[1e-13, 1e-12, 1e-10, 1e-8, 1e-6, 1e-4, 1e-2, 1e0, 1e2], label="", color= :dodgerblue, framestyle= :box, linestyle= :solid, 
-        seriesstyle= :path, title="Seismo-Mechanical Simulation (t = " * string(@sprintf("%.3f", t/time_year)) * " year )", 
+        # # FIXME: changed here!
+        # p12 = plot(evo_t_year, evo_Vp; xlims=(0.0, 1000), ylims=(1.0e-13, 1.0e2), yaxis=:log, yticks =[1e-13, 1e-12, 1e-10, 1e-8, 1e-6, 1e-4, 1e-2, 1e0, 1e2], label="", color= :dodgerblue, framestyle= :box, linestyle= :solid, 
+        # seriesstyle= :path, title="Seismo-Mechanical Simulation (t = " * string(@sprintf("%.3f", t/time_year)) * " year )", 
+        # xlabel = "Time [year]", ylabel="Maximum Slip Rate [m/s]" )
+
+        # display(plot(p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12; layout=(4,3))); frame(anim)
+
+        p1 = heatmap(xc,yc,log.(Array(Vp)/V0)',c=:balance, aspect_ratio=1, xticks=nothing, yticks=nothing, xlabel="", ylabel="", xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title=L"$\log_{10}(\frac{V_\mathrm{pl}}{V_0})$")
+        p2 = plot(X./1000, Array(τxx)[:, h_index] , legend=false, xticks=nothing, xlabel="", xlims=(0.0,lx/1000), title="Shear stress on the fault", framestyle=:box, markersize=3)
+        p3 = heatmap(xv,yc, 1e9*Array(Vx)',c=:balance, aspect_ratio=1, colorbar_title="1e-9", colorbar_titlefontrotation=180,  xticks=nothing, yticks=nothing, xlabel="", ylabel="", xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title="Vx")
+        p4 = plot(X./1000, Array(Ω)[:, h_index] , legend=false, xlabel="",  xticks=nothing, xlims=(0.0,lx/1000), title="State variable on the fault", framestyle=:box, markersize=3)
+        p5 = heatmap(xc,yv,1e11*Array(Vy)',c=:balance,aspect_ratio=1,colorbar_title="1e-11", colorbar_titlefontrotation=180,xticks=nothing, yticks=nothing,  xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title="Vy")
+        p6 = plot(X./1000, Array(Vp)[:, h_index] , legend=false, xlabel="Distance [km]", xlims=(0.0,lx/1000), title="Slip rate on the fault", framestyle=:box, markersize=3)
+        p7 = plot(evo_t_year, evo_Vp; xlims=(0.0, 70), ylims=(minimum(evo_Vp), 1.0), yaxis=:log, yticks =[1e-12, 1e-10, 1e-8, 1e-6, 1e-4, 1e-2, 1.0], label="", color= :dodgerblue, framestyle= :box, linestyle= :solid, 
+        seriesstyle= :path, title="Seismo-Mechanical Earthquake Cycles (t = " * string(@sprintf("%.3f", t/time_year)) * " year )", 
         xlabel = "Time [year]", ylabel="Maximum Slip Rate [m/s]" )
 
-        display(plot(p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12; layout=(4,3))); frame(anim)
+        l = @layout [a b; c d; e f; g]
+
+        display(plot(p1,p2,p3,p4,p5,p6,p7; layout=l)); frame(anim)
+
+
     end                
 
 
-    gif(anim, "vizGPU_out/rsf_strikeslip_fault.gif", fps = 15)
+    gif(anim, "vizGPU_out/rsf_strikeslip_fault.gif", fps = 10)
 
     @show evo_τxx
     @show evo_Vp
