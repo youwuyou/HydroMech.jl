@@ -24,7 +24,6 @@ end
 end
 
 
-
 using Plots, Plots.Measures, LinearAlgebra,Printf
 using LaTeXStrings
 # helper functions
@@ -79,14 +78,6 @@ end
     return nothing
 end
 
-@inbounds @parallel function compute_residual_mass_law_inertia!(Rp, ∇V, Pr, Pr_o, _dt)
-    @all(Rp)    = -@all(∇V) - (@all(Pr) - @all(Pr_o)) * _dt
-    return nothing
-end
-
-# pressure
-# Rp    .= -∇V - (Pr - Pr_o)/dt
-
 
 @inbounds @parallel function compute_pressure!(Pr, Gdτ, Rp, r)
     @all(Pr) = @all(Pr) + r*@all(Gdτ)*@all(Rp)
@@ -97,13 +88,9 @@ end
 @inbounds @parallel function compute_ve_stress!(Exy, τxx, τyy, τxy, τxyc, τxx_o, τyy_o, τxy_o, τxyc_o, Vx, Vy, η_ve_τ, η_ve_τv, η_e, η_ev, Gdτ, Gdτv, _dx, _dy)
 
     @inn(Exy) = 0.5 * (@d_yi(Vx) * _dy + @d_xi(Vy) * _dx)
-    # @all(τxx) = 2.0*@all(η_ve_τ)*(@d_xa(Vx)* _dx + 0.5*@all(τxx_o)/@all(η_e) + 0.5*@all(τxx)/@all(Gdτ))
-    # @all(τyy) = 2.0*@all(η_ve_τ)*(@d_ya(Vy)* _dy + 0.5*@all(τyy_o)/@all(η_e) + 0.5*@all(τyy)/@all(Gdτ))
-    # @all(τxyc) = 2.0*@all(η_ve_τ)*(@av(Exy) + 0.5*@all(τxyc_o)/@all(η_e) + 0.5*@all(τxyc)/@all(Gdτ))
-
-    @all(τxx) = (1.0 - 0.5)*@all(τxx) +  0.5*(2.0*@all(η_ve_τ)*(@d_xa(Vx)* _dx + 0.5*@all(τxx_o)/@all(η_e) + 0.5*@all(τxx)/@all(Gdτ)))
-    @all(τyy) = (1.0 - 0.5)*@all(τyy) +  0.5*(2.0*@all(η_ve_τ)*(@d_ya(Vy)* _dy + 0.5*@all(τyy_o)/@all(η_e) + 0.5*@all(τyy)/@all(Gdτ)))
-    @all(τxyc) = (1.0 - 0.5)*@all(τxyc) +  0.5*(2.0*@all(η_ve_τ)*(@av(Exy) + 0.5*@all(τxyc_o)/@all(η_e) + 0.5*@all(τxyc)/@all(Gdτ)))
+    @all(τxx) = 2.0*@all(η_ve_τ)*(@d_xa(Vx)* _dx + 0.5*@all(τxx_o)/@all(η_e) + 0.5*@all(τxx)/@all(Gdτ))
+    @all(τyy) = 2.0*@all(η_ve_τ)*(@d_ya(Vy)* _dy + 0.5*@all(τyy_o)/@all(η_e) + 0.5*@all(τyy)/@all(Gdτ))
+    @all(τxyc) = 2.0*@all(η_ve_τ)*(@av(Exy) + 0.5*@all(τxyc_o)/@all(η_e) + 0.5*@all(τxyc)/@all(Gdτ))
 
     return nothing
 end 
@@ -111,28 +98,27 @@ end
 
 @inbounds @parallel function compute_tensor!(τxy, η_ve_τv, Exy, τxy_o, η_ev, Gdτv)
 
-    # @all(τxy) = 2.0*@all(η_ve_τv)*(@all(Exy) + 0.5*@all(τxy_o)/@all(η_ev) + 0.5*@all(τxy)/@all(Gdτv))
-    @all(τxy) = (1.0 -0.5)*@all(τxy) + 0.5*( 2.0*@all(η_ve_τv)*(@all(Exy) + 0.5*@all(τxy_o)/@all(η_ev) + 0.5*@all(τxy)/@all(Gdτv)))
+    @all(τxy) = 2.0*@all(η_ve_τv)*(@all(Exy) + 0.5*@all(τxy_o)/@all(η_ev) + 0.5*@all(τxy)/@all(Gdτv))
 
     return nothing
 end
 
 
 @inbounds @parallel function compute_slip_rate!(Vp, τii, a, b, Ω, γ, Pt, V0)
+
+    # if no smoothing was used computation would have been:
     # @all(Vp) = 2.0*V0*sinh(@all(τii)/@all(a)/Pt)/exp((@all(b)*@all(Ω) + @all(γ))/@all(a))
-    # @all(Vp) = 2.0*V0*sinh(@all(τii)/@all(a)/@all(Pr))/exp((@all(b)*@all(Ω) + @all(γ))/@all(a))
 
-    @all(Vp) = (1.0 - 0.01) * @all(Vp) + 0.01*(2.0*V0*sinh(@all(τii)/@all(a)/Pt)/exp((@all(b)*@all(Ω) + @all(γ))/@all(a)))
+    # we employ a smoothing technique, chosen relaxation parameter θ = 0.5 here
+    @all(Vp) = (1.0 - 0.5) * @all(Vp) + 0.5*(2.0*V0*sinh(@all(τii)/@all(a)/Pt)/exp((@all(b)*@all(Ω) + @all(γ))/@all(a)))
 
-    # @all(K_muf) = (1.0-θ_k)*@all(K_muf) + θ_k*( k_μf0 * (@all(Phi)/ϕ0)^nperm )
-
-    
     return nothing
 end
 
 
 @inbounds @parallel function compute_plastic_correction!(λ, Vp, τxx, τyy, τxy, τxyc, τii, η_ve_τ, η_ve_τv, _dx)
-            
+
+    # estimation of plastic multiplier (Casper)
     @all(λ)  = 0.5*@all(Vp)*_dx
 
     @all(τxx) = @all(τxx) - 2.0*@all(η_ve_τ)*(@all(λ)*0.5*@all(τxx)/@all(τii))
@@ -207,62 +193,59 @@ end
 # main function
 @views function Stokes2D_vep()
     # numerics
-    lx       = 370000.0  # [m] 370 km
-    ly       = 370000.0
-    nx       = 100
-    ny       = 100
-    # nt       = 600
-    nt       = 140
-    εnl      = 1e-6
-    time_year = 365.25*24*3600
-    maxiter = 10000
+    lx            = 10000.0  # [m] = 10 km
+    ly            = 6000.0   # [m] = 6 km
+    nx            = 167
+    ny            = 100
+    X             = LinRange(0.0, lx, nx)       
+    Y             = LinRange(0.0, ly, ny-1)
+    @show h_index = ceil(Int, (ny - 1) / 2) + 1 # row index where the properties are stored for the fault
 
-    # nchk    = 100max(nx,ny)
-    nchk    = 10max(nx,ny)
-    Re      = 5π
-    r       = 1.0
-    CFL     = 0.99/sqrt(2)
+    nt            = 30                # small number for the first-time compilation run, set to other values for longer run
+    εnl           = 1.0e-6
+    maxiter       = 8000
+    nchk          = 10max(nx,ny)     # error checking frequency
+    nviz          = 1                # visualization frequency
+    Re            = 5π
+    r             = 1.0
+    CFL           = 0.99/sqrt(2)
+    time_year     = 365.25*24*3600
 
 
     # preprocessing
     @show dx,dy   = lx/nx,ly/ny
     _dx, _dy      = inv(dx), inv(dy)
-
-    max_lxy = max(lx,ly)
-    vpdτ    = CFL*min(dx,dy)
-    xc,yc   = LinRange(-(lx-dx)/2,(lx-dx)/2,nx),LinRange(-(ly-dy)/2,(ly-dy)/2,ny)
-    xv,yv   = LinRange(-lx/2,lx/2,nx+1),LinRange(-ly/2,ly/2,ny+1)
-    @show h_index  = ceil(Int, (ny - 1) / 2) + 1 # row index where the properties are stored for the fault
-
+    max_lxy       = max(lx,ly)
+    vpdτ          = CFL*min(dx,dy)
+    xc,yc         = LinRange(-(lx-dx)/2,(lx-dx)/2,nx),LinRange(-(ly-dy)/2,(ly-dy)/2,ny)
+    xv,yv         = LinRange(-lx/2,lx/2,nx+1),LinRange(-ly/2,ly/2,ny+1)
 
     # phyics
     η0      = 1.0e23          # viscosity
-    G0      = 3.0e10          # shear modulus
-
+    G0      = 30.0e9          # shear modulus
 
     # allocate arrays
     Pr_o    = @zeros(nx  ,ny  )
-    Rp      = @zeros(nx  ,ny  )
+    λ       = @zeros(nx  ,ny  )
     τxx     = @zeros(nx  ,ny  )
     τyy     = @zeros(nx  ,ny  )
-    λ       = @zeros(nx  ,ny  )
-    F       = @zeros(nx  ,ny  )
     τxx_o   = @zeros(nx  ,ny  )
     τyy_o   = @zeros(nx  ,ny  )
     τxyc_o  = @zeros(nx  ,ny  )
     τxy_o   = @zeros(nx+1,ny+1)
+    ∇V      = @zeros(nx  ,ny  )
     Vy      = @zeros(nx  ,ny+1)
+    Rp      = @zeros(nx  ,ny  )
     Rx      = @zeros(nx-1,ny  )
     Ry      = @zeros(nx  ,ny-1)
-    ∇V      = @zeros(nx  ,ny  )
-    
-    Pt      = 5.0e6
-    Pr_cpu  = fill(Pt, nx, ny)
-    Pr      = PTArray(Pr_cpu)
     τxy_cpu = zeros(nx+1,ny+1)
     τxyc_cpu= zeros(nx  ,ny  )
     τii_cpu = zeros(nx  ,ny  )
     Vx_cpu  = zeros(nx+1,ny  )
+
+    Pt      = 40.0e6
+    Pr_cpu  = fill(Pt, nx, ny)
+    Pr      = PTArray(Pr_cpu)
     
     # added inertia    
     ρ0      = 2700.0
@@ -274,104 +257,67 @@ end
     Vx_o    = @zeros(nx+1,ny  )
     Vy_o    = @zeros(nx  ,ny+1)
     
-    # rate and state friction
-    Vp_cpu      = zeros(nx, ny)
     
     # Parameters for rate-and-state dependent friction
-    #            domain   fault
-    a0        = [0.011    0.011]     # a-parameter of RSF
-    b0        = [0.017    0.001]     # b-parameter of RSF    
-    Ω0        = [40.0    -1.0]       # State variable from the preνious time step
+    #           rate-s    rate-w
+    a0        = [0.008    0.008]     # a-parameter of RSF
+    b0        = [0.001    0.017]     # b-parameter of RSF    
     V0        = 4.0e-9               # characteristic slip rate for aseismic slip
-    # V0        = 1.0e-6               # characteristic slip rate used in paper, not working yet
-    γ0        = 0.2                  # Reference Friction
-
+    γ0        = 0.6                  # Reference Friction
+    L         = 0.008 
+    Vp        = @zeros(nx, ny)
     γ_cpu     = fill(γ0, nx,ny)
     γ         = PTArray(γ_cpu)
+    a_cpu     = fill(a0[1],nx,ny)
+    b_cpu     = fill(b0[1],nx,ny)
 
-    a_cpu   = fill(a0[1],nx,ny)
-    b_cpu   = fill(b0[1],nx,ny)
-    # L_cpu   = fill(L0[1],nx,ny)
-    Ω_cpu   = fill(Ω0[1],nx,ny)
-    Ω_o     = @zeros(nx,ny)   # for state variable ODE update
-
+    # State variable from the preνious time step
+    #            bulk    fault
+    Ω0        = [40.0    -1.0]       
+    Ω_o       = @zeros(nx,ny)   # for state variable ODE update
+    Ω_cpu     = fill(Ω0[1],nx,ny)    # in bulk domain
+    @. Ω_cpu[:, h_index] = Ω0[2]     # along the fault
+    
     # setting up geometry
     # assign along fault [:, h_index] for rate-strengthing/weakening regions        
-    #    0km   4km    6km                 34km    36km  40km
-    #    x0    x1     x2                   x3     x4    x5
-    #    |*****|xxxxxx|                    |xxxxxx|*****|  
-    #    -----------------------------------------------
-    # x0   = 0.0
-    # x1   = 4.0e3
-    # x2   = 6.0e3
-    # x3   = 34.0e3
-    # x4   = 36.0e3
-    # x5   = lx
-
-    #    0km   16km    32km                118km   134km  150km
-    #    x0    x1     x2                   x3     x4    x5
-    #    |*****|xxxxxx|                    |xxxxxx|*****|  
-    #    -----------------------------------------------
-    # x0   = 0.0
-    # x1   = 16.0e3
-    # x2   = 32.0e3
-    # x3   = 118.0e3
-    # x4   = 134.0e3
-    # x5   = lx
-
-    #    0km   37km    74km                296km   333km  370m
+    #    0km   0.5km    1km                9km   9.5km  10m
     #    x0    x1     x2                   x3     x4    x5
     #    |*****|xxxxxx|                    |xxxxxx|*****|  
     #    -----------------------------------------------
     x0   = 0.0
-    x1   = 37.0e3
-    x2   = 74.0e3
-    x3   = 296.0e3
-    x4   = 333.0e3
+    x1   = 0.05lx
+    x2   = 0.1lx
+    x3   = 0.9lx
+    x4   = 0.95lx
     x5   = lx
 
-
-    # for defining properties for rsf
-    # X = LinRange(0.0, lx, nx-1)
-    X = LinRange(0.0, lx, nx)
 
     for i in 1:1:nx
         for j in 1:1:ny
 
             # if along the fault
             if j == h_index
-            # if j in [h_index-1, h_index, h_index+1]
-
                 # assign domain value
                 if x0 <= X[i] <= x1 || x4 <= X[i] <= x5
                     a_cpu[i,j]  = a0[1]
                     b_cpu[i,j]  = b0[1]
-                    Ω_cpu[i,j]  = Ω0[1]
-                    # L_cpu[i,j]  = L0[1]
                 end
 
                 # assign fault value
                 if x2 <= X[i] <= x3
                     a_cpu[i,j]  = a0[2]
                     b_cpu[i,j]  = b0[2]
-                    Ω_cpu[i,j]  = Ω0[2]
-                    # L_cpu[i,j]  = L0[2]
                 end
 
                 # assign transition zone value (left)
                 if x1 < X[i] < x2
                     a_cpu[i, j]    = a0[1] - (a0[1] - a0[2]) * ((X[i] - x1) / (x2 - x1))
                     b_cpu[i, j]    = b0[1] - (b0[1] - b0[2]) * ((X[i] - x1) / (x2 - x1))
-                    Ω_cpu[i, j]    = Ω0[1] - (Ω0[1] - Ω0[2]) * ((X[i] - x1) / (x2 - x1))
-                    # L_cpu[i, j]    = L0[1] - (L0[1] - L0[2]) * ((X[i] - x1) / (x2 - x1))
-
                 end
 
                 if x3 < X[i] < x4
                     a_cpu[i, j]  = a0[2] - (a0[2] - a0[1]) * ((X[i] - x3) / (x4 - x3))
                     b_cpu[i, j]  = b0[2] - (b0[2] - b0[1]) * ((X[i] - x3) / (x4 - x3))
-                    Ω_cpu[i, j]  = Ω0[2] - (Ω0[2] - Ω0[1]) * ((X[i] - x3) / (x4 - x3))
-                    # L_cpu[i, j]  = L0[2] - (L0[2] - L0[1]) * ((X[i] - x3) / (x4 - x3))
                 end
 
             end
@@ -382,13 +328,10 @@ end
     a   = PTArray(a_cpu)
     b   = PTArray(b_cpu)
     Ω   = PTArray(Ω_cpu)
-    # L   = PTArray(L_cpu)
 
-    L   = 0.001  # for aseismic slip
  
-    # initial velocity
-    VL        = 2.0e-9    
-    Y = LinRange(0.0, ly, ny-1)
+    # initial velocity using gradient change of loading slip rate
+    VL = 1.0e-9      # loading rate
     y1 = 0.0
     y2 = 10.0e3
     y3 = 20.0e3
@@ -411,36 +354,30 @@ end
         end
     end
     
+    # prescribe loading rate B.C. see explaination in pt b.c. update for update details
     Vx_cpu[:,1]    .= -VL
     Vx_cpu[:,end]  .= VL
     Vx  = PTArray(Vx_cpu)
     
-    plota = heatmap(xv,yc,Array(Vx)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title="Vx")
-    plotb = heatmap(xc,yv,Array(Vy)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title="Vy")
-
+    
     # DEBUG
+    # plota = heatmap(xv,yc,Array(Vx)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title="Vx")
+    # plotb = heatmap(xc,yv,Array(Vy)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title="Vy")
     # display(plot(plota, plotb))
     # savefig("vizGPU_out/VxVy.png")
 
-    # FIXME: intialize stress such that frictional coefficient is of order 1e-2
-    @. τxy_cpu   = 0.1*Pt
-    @. τxyc_cpu  = 0.1*Pt
-
-    # @. τxy_cpu   = 0.5*Pt
-    # @. τxyc_cpu  = 0.5*Pt
+    # FIXME: intialize only shear stress
+    @. τxy_cpu   = 0.5*Pt
+    @. τxyc_cpu  = 0.5*Pt
 
     τxy  = PTArray(τxy_cpu)
     τxyc = PTArray(τxyc_cpu)
 
-
     # precomputation of τII as slip rate requires this
-    @. τii_cpu   = sqrt(#=0.5*(τxx^2 + τyy^2) + =#τxyc_cpu*τxyc_cpu)   # TODO: new compute_second_invariant!()
-    # @. Vp_cpu = 2*V0*sinh((τii_cpu)/a_cpu/Pt)/exp((b_cpu*Ω_cpu + γ_cpu)/a_cpu)
-    τii  = PTArray(τii_cpu)
-    Vp   = PTArray(Vp_cpu)
+    @. τii_cpu   = sqrt(#=0.5*(τxx^2 + τyy^2)=# +τxyc_cpu*τxyc_cpu)  # τxx, τyy not initialized
+    τii          = PTArray(τii_cpu)
 
-
-
+    # PT damping parameters arrays allocation
     Exy     = @zeros(nx+1,ny+1)
     η_ve_τ  = @zeros(nx  ,ny  )
     η_ve_τv = @zeros(nx+1,ny+1)
@@ -463,29 +400,24 @@ end
     η_e   = @zeros(nx, ny)
     η_ev  = @zeros(nx+1, ny+1)
 
-    F     = @zeros(nx, ny)
-
     
     # action
     t = 0.0; evo_t = Float64[]; evo_τxx = Float64[]
 
     # record evolution of time step size and slip rate
-    evo_t_year = Float64[]; evo_Δt = Float64[]; evo_Vp = Float64[]; evo_Peff = Float64[]
+    evo_t_year = Float64[]; evo_dt = Float64[]; evo_Vp = Float64[]
 
     for it = 1:nt
 
-        # [x] correct!
+        # assign old values from previous physical timestep
         @parallel assign!(τxx_o, τxx, τyy_o, τyy, τxy_o, τxy, τxyc_o, τxyc, Pr_o, Pr, Vx_o, Vx, Vy_o, Vy, Ω_o, Ω)
 
-
-        # FIXME: ADD ADAPTIVE TIMESTEPPING HERE
-        # @show dt = min(1.9*L/maximum(Vp), 0.1*time_year)
-        # @show dt = min(dx*1e-5/maximum(Vp), 0.1*time_year)
-        # @show dt = min(1.9*dx/maximum(Vp), 0.1*time_year)
-        # @show dt = min(1.9*dx*1e-7/maximum(Vp), 5time_year)
-        @show dt = min(1.9*dx*1e-7/maximum(Vp), 5time_year)
-
-        # @show dt = min(1.9*dx/maximum(Vp), 5time_year)
+        #==========================================#
+        # FIXME: will use parallelstencil kernel after for this section        
+        # using adaptive time stepping scheme
+        # 1). stability-induced timestep constraint
+        # 2). using empirically found minimal timestep threshold
+        @show dt = min(1.9*L*1e-5/maximum(Vp), 0.1time_year)
 
         η_e   = G.*dt; η_ev = Gv.*dt
         @. η_ve  = 1.0/(1.0/η  + 1.0/η_e)
@@ -507,16 +439,18 @@ end
         # for stress update
         @. η_ve_τ  = 1.0/(1.0/η + 1.0/η_e + 1.0/Gdτ)
         @. η_ve_τv = 1.0/(1.0/ηv + 1.0/η_ev + 1.0/Gdτv)        
+
+        # precompute reprocical due to performance
         _dt     = inv(dt)
+        #==========================================#
 
 
         err  = 2εnl; iter = 0
         while err > εnl && iter < maxiter
             #==========================================#
-            # pressure [x] correct
+            # pressure update
             @parallel compute_∇!(∇V, Vx, Vy, _dx, _dy)
             @parallel compute_residual_mass_law!(Rp, ∇V)
-            # @parallel compute_residual_mass_law_inertia!(Rp, ∇V, Pr, Pr_o, _dt)
             @parallel compute_pressure!(Pr, Gdτ, Rp, r)
 
             #==========================================#            
@@ -526,98 +460,119 @@ end
             # preventing race condition!
             @parallel compute_tensor!(τxy, η_ve_τv, Exy, τxy_o, η_ev, Gdτv)                        
             
-            # slip rate [x] correct!
-            # FIXME: change 1: depenent on Pr instead of Pt
+            # slip rate update
+            # FIXME: using constant pressure for slip rate computation in compressible case (Casper)
             @parallel compute_slip_rate!(Vp, τii, a, b, Ω, γ, Pt, V0)
 
 
-            # plastic correction [x] correct!
+            # plastic correction update
+            # passing only the fault part, passing in this way λ[:, h_index] is proven to be valid is ParallelStencil
             @parallel compute_plastic_correction!(λ[:, h_index], Vp[:, h_index], τxx[:, h_index], τyy[:, h_index], τxy[:, h_index], τxyc[:, h_index], τii[:, h_index], η_ve_τ[:, h_index], η_ve_τv[:, h_index], _dx)
-            # @parallel compute_plastic_correction!(λ[:, h_index-1:h_index+1], Vp[:, h_index-1:h_index+1], τxx[:, h_index-1:h_index+1], τyy[:, h_index-1:h_index+1], τxy[:, h_index-1:h_index+1], τxyc[:, h_index-1:h_index+1], τii[:, h_index-1:h_index+1], η_ve_τ[:, h_index-1:h_index+1], η_ve_τv[:, h_index-1:h_index+1], _dx)
-            # second invariant [x] correct!
+
+            # compute second invariant
             @parallel compute_second_invariant!(τii, τxx, τyy, τxyc)
 
             #==========================================#
-            # velocity [x] correct!
+            # compute velocity
             @parallel compute_residual_momentum_law!(Rx, Ry, τxx, τyy, τxy, Pr, ρ, ρg, Vx, Vx_o, Vy, Vy_o, _dx, _dy, _dt)
             @parallel compute_velocity!(Vx, Vy, Rx, Ry, dτ_ρ)
+
+            # update state parameter, within the PT loop as in Räss et al. (2019) porosity wave benchmark
             @parallel compute_state_parameter!(Ω, Vp, dt, V0, L)
 
             #==========================================#
-            # Boundary conditions [x] correct
+            # Boundary conditions
             @parallel (1:nx+1) dirichlet_y!(Vx, -VL, VL)
             @parallel (1:nx)   dirichlet_y!(Vy, 0.0, 0.0)            
             @parallel (1:ny)   free_slip_x!(Vx)
             @parallel (1:ny+1) free_slip_x!(Vy)
-            # @parallel (1:ny+1) dirichlet_x!(Vy, 0.0, 0.0)            
+
+            # alternatively using Dirichlet for Vy as in intro to numerical modelling
+            # though B.C. of Vy shouldn't make much difference here
+            # @parallel (1:ny+1) dirichlet_x!(Vy, 0.0, 0.0)       
+            
+            # NOTE: our properties are stored in the following format
+            #     for example, dirichlet_y! will be apply to the y-axis
+            #     from our perspective of seeing, which corresponds to
+            #     boundaries parallel to where "nx" stands in the following figure
+            #
+            # sanity check: apply kernel dirichlet_y!(Vx, val_left, val_right) 
+            #      with Vx of size (nx+1,ny)
+            #      updates       - A[Vx, 1]   = val_left     for ix in [1, nx+1]
+            #                    - A[Vx, end] = val_right
+
+            #                  ny
+            #          ---------x---------   
+            #          |        |        |
+            #          |        |        |
+            #          |        |        |
+            #          |        |        |
+            #    nx    |        |        |
+            #          |        |        |
+            #          |        |        |
+            #          |        |        |
+            #          |        |        |
+            #          ------------------
+    
+            # NOTE: when we plot we plot the transpose of the matrix and obtain the following
+            #           
+            #         ----------------------------------
+            #         |                                | ny
+            #         |                                |
+            #         x--------------------------------|
+            #         |                                |
+            #         |                                |
+            #         |---------------------------------
+            #                    nx
 
             if iter % nchk == 0
                 norm_Rx = norm(Rx)/sqrt(length(Rx)); norm_Ry = norm(Ry)/sqrt(length(Ry)); norm_∇V = norm(∇V)/sqrt(length(∇V))
                 err = maximum([norm_Rx, norm_Ry, norm_∇V])
-                @printf("it = %d, iter = %d, err = %1.2e norm[Rx=%1.2e, Ry=%1.2e, ∇V=%1.2e] (F=%1.2e) \n", it, iter, err, norm_Rx, norm_Ry, norm_∇V, maximum(F))
+                @printf("it = %d, iter = %d, err = %1.2e norm[Rx=%1.2e, Ry=%1.2e, ∇V=%1.2e] \n", it, iter, err, norm_Rx, norm_Ry, norm_∇V)
             end
             iter += 1
-
-
         end
 
         @show max_Vp          = maximum(Vp)
-        @show max_τii         = maximum(τii)
-
-
 
         # store fluid pressure for wanted time points
-        if STORE_DATA && mod(it, 1) == 0
+        if STORE_DATA && mod(it, nviz) == 0
             save("earthquake_cycles/max_Vp_fault" * string(it) * ".jld", "data", Array(Vp[:, h_index])')   # store the fluid pressure along the fault for fluid injection benchmark
         end
 
-        t += dt; push!(evo_t, t); push!(evo_τxx, maximum(τxx))
+        
+        # advance in physical time
+        t += dt; push!(evo_t, t); push!(evo_τxx, maximum(τxx)); push!(evo_dt, dt)
         
         # store evolution of physical properties wrt time
         push!(evo_t_year, t/time_year); push!(evo_Vp, max_Vp);
+        
+        if mod(it, nviz) == 0
+            # visualization
+            p1 = heatmap(xc,yc,log.(Array(Vp)/V0)',c=:balance, aspect_ratio=1, xticks=nothing, yticks=nothing, xlabel="", ylabel="", xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title=L"$\log_{10}(\frac{V_\mathrm{pl}}{V_0})$")
+            p2 = plot(X./1000, Array(τxyc)[:, h_index] , legend=false, xticks=nothing, xlabel="", xlims=(0.0,lx/1000), title="Shear stress "* L"\sigma_\mathrm{xy}" *" on the fault", framestyle=:box, markersize=3)
+            p3 = heatmap(xv,yc, 1e9*Array(Vx)',c=:balance, aspect_ratio=1, colorbar_title="1e-9", colorbar_titlefontrotation=180,  xticks=nothing, yticks=nothing, xlabel="", ylabel="", xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title="Vx")
+            p4 = plot(X./1000, Array(Ω)[:, h_index] , legend=false, xlabel="",  xticks=nothing, xlims=(0.0,lx/1000), title="State variable "* L"\Theta" *" on the fault", framestyle=:box, markersize=3)
+            p5 = heatmap(xc,yv,Array(Vy)',c=:balance,aspect_ratio=1,colorbar_titlefontrotation=180,xticks=nothing, yticks=nothing,  xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title="Vy")
+            p6 = plot(X./1000, Array(Vp)[:, h_index] , legend=false, xlabel="Distance [km]", xlims=(0.0,lx/1000), title="Slip rate "* L"V_\mathrm{p}" *" on the fault", framestyle=:box, markersize=3)
+            p7 = plot(evo_t_year, evo_Vp; xlims=(0.0, 50), ylims=(minimum(evo_Vp), 1.0e2), yaxis=:log, yticks =[1e-14, 1e-12, 1e-10, 1e-8, 1e-6, 1e-4, 1e-2, 1.0, 1e2], label="", color= :dodgerblue, framestyle= :box, linestyle= :solid, 
+            seriesstyle= :path, title="Seismo-Mechanical Earthquake Cycles (t = " * string(@sprintf("%.3f", t/time_year)) * " year )", xlabel = "", ylabel="Maximum Slip Rate [m/s]" )
+            p8 = plot(evo_t_year, evo_dt; xlims=(0.0, 50), ylims=(1.0e-3, 1.0e7), yaxis=:log, yticks =[1e-3, 1e-2, 1.0, 1e2, 1e4, 1e6], label="", color= :orange, framestyle= :box, linestyle= :solid, 
+            seriesstyle= :path, title="", 
+            xlabel = "Time [year]", ylabel="Time Step [s]" )
 
-        # p1 = heatmap(xc,yc,log.(Array(Vp)/V0)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title=L"$\log_{10}(\frac{V_P}{V_0})$")
-        # p1 = heatmap(xc,yc,log.(Array(Vp))',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title=L"$\log_{10}(V_P)$")
+            l = @layout [a b; c d; e f; g; h]
 
-        # p2 = heatmap(xc,yc,Array(Pr)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title=L"$P$")
-        # p3 = heatmap(xc,yc,Array(τxx)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title=L"$\tau_\mathrm{xx}$")
-        # p4 = heatmap(xc,yc,Array(τyy)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title=L"$\tau_\mathrm{yy}$")
-        # p5 = heatmap(xv,yv,Array(τxy)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title=L"$\tau_\mathrm{xy}$")
-        # p6 = heatmap(xc,yc,Array(τii)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title=L"$\tau_\mathrm{II}$")
-        # p7 = heatmap(xv,yc,Array(Vx)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title="Vx")
-        # p8 = heatmap(xc,yv,Array(Vy)',aspect_ratio=1,xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title="Vy")
-
-        # p9 = plot(X, Array(τxx)[:, h_index] , legend=false, xlabel="", xlims=(0.0,lx), title="Shear stress on the fault", framestyle=:box, markersize=3)
-        # p10 = plot(X, Array(Ω)[:, h_index] , legend=false, xlabel="", xlims=(0.0,lx), title="State variable", framestyle=:box, markersize=3)
-        # p11 = plot(X, Array(Vp)[:, h_index] , legend=false, xlabel="", xlims=(0.0,lx), title="Slip rate", framestyle=:box, markersize=3)
-     
-        # # FIXME: changed here!
-        # p12 = plot(evo_t_year, evo_Vp; xlims=(0.0, 1000), ylims=(1.0e-13, 1.0e2), yaxis=:log, yticks =[1e-13, 1e-12, 1e-10, 1e-8, 1e-6, 1e-4, 1e-2, 1e0, 1e2], label="", color= :dodgerblue, framestyle= :box, linestyle= :solid, 
-        # seriesstyle= :path, title="Seismo-Mechanical Simulation (t = " * string(@sprintf("%.3f", t/time_year)) * " year )", 
-        # xlabel = "Time [year]", ylabel="Maximum Slip Rate [m/s]" )
-
-        # display(plot(p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12; layout=(4,3))); frame(anim)
-
-        p1 = heatmap(xc,yc,log.(Array(Vp)/V0)',c=:balance, aspect_ratio=1, xticks=nothing, yticks=nothing, xlabel="", ylabel="", xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title=L"$\log_{10}(\frac{V_\mathrm{pl}}{V_0})$")
-        p2 = plot(X./1000, Array(τxx)[:, h_index] , legend=false, xticks=nothing, xlabel="", xlims=(0.0,lx/1000), title="Shear stress on the fault", framestyle=:box, markersize=3)
-        p3 = heatmap(xv,yc, 1e9*Array(Vx)',c=:balance, aspect_ratio=1, colorbar_title="1e-9", colorbar_titlefontrotation=180,  xticks=nothing, yticks=nothing, xlabel="", ylabel="", xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title="Vx")
-        p4 = plot(X./1000, Array(Ω)[:, h_index] , legend=false, xlabel="",  xticks=nothing, xlims=(0.0,lx/1000), title="State variable on the fault", framestyle=:box, markersize=3)
-        p5 = heatmap(xc,yv,1e11*Array(Vy)',c=:balance,aspect_ratio=1,colorbar_title="1e-11", colorbar_titlefontrotation=180,xticks=nothing, yticks=nothing,  xlims=(-lx/2,lx/2),ylims=(-ly/2,ly/2),title="Vy")
-        p6 = plot(X./1000, Array(Vp)[:, h_index] , legend=false, xlabel="Distance [km]", xlims=(0.0,lx/1000), title="Slip rate on the fault", framestyle=:box, markersize=3)
-        p7 = plot(evo_t_year, evo_Vp; xlims=(0.0, 70), ylims=(minimum(evo_Vp), 1.0), yaxis=:log, yticks =[1e-12, 1e-10, 1e-8, 1e-6, 1e-4, 1e-2, 1.0], label="", color= :dodgerblue, framestyle= :box, linestyle= :solid, 
-        seriesstyle= :path, title="Seismo-Mechanical Earthquake Cycles (t = " * string(@sprintf("%.3f", t/time_year)) * " year )", 
-        xlabel = "Time [year]", ylabel="Maximum Slip Rate [m/s]" )
-
-        l = @layout [a b; c d; e f; g]
-
-        display(plot(p1,p2,p3,p4,p5,p6,p7; layout=l)); frame(anim)
-
+            display(plot(p1,p2,p3,p4,p5,p6,p7,p8; layout=l)); frame(anim)
+        end
 
     end                
 
 
     gif(anim, "vizGPU_out/rsf_strikeslip_fault.gif", fps = 10)
 
+
+    # DEBUG
     @show evo_τxx
     @show evo_Vp
 
