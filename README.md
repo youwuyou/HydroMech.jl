@@ -1,9 +1,5 @@
 # HydroMech.jl
 
-[![CI action](https://github.com/youwuyou/HydroMech.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/youwuyou/HydroMech.jl/actions/workflows/ci.yml) 
-
-- [website documentation](http://justrelax-framework.org/dev/)
-
 Modeling earthquake source processes with an accelerated pseudo-transient solver.
 
 ## Description
